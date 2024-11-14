@@ -6,14 +6,14 @@ class Settings(BaseSettings):
     PROJECT_NAME: str
     CLERK_PEM_PUBLIC_KEY: str
     CLERK_API_KEY: str
-    # POSTGRES_URI: str
+    POSTGRES_URI: str
     # REDIS_URI: str
 
-    # @field_validator("POSTGRES_URI")
-    # def validate_postgres_uri(cls, v):
-    #     if not v.startswith("postgres://"):
-    #         raise ValueError("Invalid postgres uri")
-    #     return v
+    @field_validator("POSTGRES_URI")
+    def validate_postgres_uri(cls, v):
+        if not v.startswith("postgresql://"):
+            raise ValueError("Invalid postgres uri")
+        return v
 
     # @field_validator("REDIS_URI")
     # def validate_redis_uri(cls, v):
