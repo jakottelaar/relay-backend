@@ -1,16 +1,30 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
-from .config import settings
+# app/core/database.py
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator, Annotated
+from fastapi import Depends
+from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.pool import NullPool
 
-engine = create_engine(settings.POSTGRES_URI)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+from app.core.config import settings
+
+# Create async engine
+engine = create_async_engine(
+    settings.POSTGRES_URI,
+    echo=settings.DEBUG,
+    future=True,
+    poolclass=NullPool,
+)
 
 
-def get_db():
-    db = SessionLocal()
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    async_session = AsyncSession(engine, expire_on_commit=False)
     try:
-        yield db
+        yield async_session
     finally:
-        db.close()
+        await async_session.close()
+
+
+# Type for dependency injection
+AsyncSessionDep = Annotated[AsyncSession, Depends(get_async_session)]
