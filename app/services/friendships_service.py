@@ -1,4 +1,3 @@
-from fastapi import HTTPException
 from app.core.exceptions import ResourceAlreadyExistsException, ValidationException
 from app.repositories.friendships_repo import FriendshipsRepository
 from app.schemas.friendships import FriendshipCreate, FriendshipResponse
@@ -27,6 +26,16 @@ class FriendshipService:
             friend_id=db_friendship.friend_id,
             created_at=db_friendship.created_at,
             updated_at=db_friendship.updated_at,
+        )
+
+    def get_friendship_by_id(self, id: str) -> FriendshipResponse:
+        friendship = self.repository.get_friendship_by_id(id)
+        return FriendshipResponse(
+            id=friendship.id,
+            user_id=friendship.user_id,
+            friend_id=friendship.friend_id,
+            created_at=friendship.created_at,
+            updated_at=friendship.updated_at,
         )
 
     def delete_friendship(self, id: str):

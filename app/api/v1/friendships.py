@@ -1,3 +1,4 @@
+from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session
 from app.api.payload import ErrorResponse
@@ -34,12 +35,28 @@ async def create_friendship(
         )
 
 
+@router.get(
+    "/{id}",
+    response_model=FriendshipResponse,
+    status_code=200,
+    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+def get_friendship(id: UUID, session: Session = Depends(get_session)):
+    try:
+        friendship_service = FriendshipService(session)
+        return friendship_service.get_friendship_by_id(id)
+    except AppException as e:
+        raise HTTPException(
+            status_code=e.code, detail=handle_app_exception(e).model_dump()
+        )
+
+
 @router.delete(
     "/{id}",
     status_code=200,
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
-def delete_friendship(id: str, session: Session = Depends(get_session)):
+def delete_friendship(id: UUID, session: Session = Depends(get_session)):
     try:
         friendship_service = FriendshipService(session)
         friendship_service.delete_friendship(id)
