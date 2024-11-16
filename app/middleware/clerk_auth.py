@@ -1,8 +1,12 @@
 from fastapi import HTTPException, status, Request
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer
 import jwt
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
+
+
+security = HTTPBearer()
 
 
 class VerifyTokenMiddleware(BaseHTTPMiddleware):
@@ -33,8 +37,8 @@ class VerifyTokenMiddleware(BaseHTTPMiddleware):
                 token, key=settings.CLERK_PEM_PUBLIC_KEY, algorithms=["RS256"]
             )
 
-            # Add the decoded token to the request state
-            request.state.user = decoded_token
+            # Add the decoded token and user_id to the request state
+            request.state.user_id = decoded_token.get("sub")
 
             # Proceed to the next middleware or route handler
             response = await call_next(request)
@@ -50,3 +54,15 @@ class VerifyTokenMiddleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={"detail": f"Authentication failed: {str(e)}"},
             )
+
+
+# Dependency to get current user ID
+async def get_current_user_id(request: Request) -> str:
+    """
+    Dependency that returns the current user ID from the request state
+    """
+    if not hasattr(request.state, "user_id"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+        )
+    return request.state.user_id

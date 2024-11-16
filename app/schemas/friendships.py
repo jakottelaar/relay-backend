@@ -4,7 +4,6 @@ from uuid import UUID
 
 
 class FriendshipCreate(BaseModel):
-    user_id: str
     friend_id: str
 
 

@@ -8,17 +8,17 @@ class FriendshipService:
     def __init__(self, session: Session):
         self.repository = FriendshipsRepository(session)
 
-    def create_friendship(self, friendship: FriendshipCreate) -> FriendshipResponse:
-        if friendship.user_id == friendship.friend_id:
+    def create_friendship(
+        self, user_id: str, friendship: FriendshipCreate
+    ) -> FriendshipResponse:
+        if user_id == friendship.friend_id:
             raise ValidationException(message="Cannot be friends with yourself")
 
-        existing = self.repository.get_friendship(
-            friendship.user_id, friendship.friend_id
-        )
+        existing = self.repository.get_friendship(user_id, friendship.friend_id)
         if existing:
             raise ResourceAlreadyExistsException(message="Friendship already exists")
 
-        db_friendship = self.repository.create(friendship)
+        db_friendship = self.repository.create(user_id=user_id, friendship=friendship)
 
         return FriendshipResponse(
             id=db_friendship.id,
@@ -27,6 +27,19 @@ class FriendshipService:
             created_at=db_friendship.created_at,
             updated_at=db_friendship.updated_at,
         )
+
+    def get_friendships(self, user_id: str) -> list[FriendshipResponse]:
+        friendships = self.repository.get_friendships(user_id)
+        return [
+            FriendshipResponse(
+                id=friendship.id,
+                user_id=friendship.user_id,
+                friend_id=friendship.friend_id,
+                created_at=friendship.created_at,
+                updated_at=friendship.updated_at,
+            )
+            for friendship in friendships
+        ]
 
     def get_friendship_by_id(self, id: str) -> FriendshipResponse:
         friendship = self.repository.get_friendship_by_id(id)

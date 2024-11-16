@@ -9,9 +9,9 @@ class FriendshipsRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def create(self, friendship: FriendshipCreate) -> Friendship:
+    def create(self, user_id: str, friendship: FriendshipCreate) -> Friendship:
         try:
-            db_friendship = Friendship(**friendship.model_dump())
+            db_friendship = Friendship(user_id=user_id, friend_id=friendship.friend_id)
             self.session.add(db_friendship)
             self.session.commit()
             self.session.refresh(db_friendship)
@@ -19,6 +19,10 @@ class FriendshipsRepository:
         except SQLAlchemyError as e:
             self.session.rollback()
             raise AppException(code=500, message="Database error occurred") from e
+
+    def get_friendships(self, user_id: str) -> list[Friendship]:
+        statement = select(Friendship).where(Friendship.user_id == user_id)
+        return self.session.exec(statement).all()
 
     def get_friendship(self, user_id: str, friend_id: str) -> Friendship:
         statement = select(Friendship).where(
