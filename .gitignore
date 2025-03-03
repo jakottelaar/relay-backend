@@ -1,25 +1,5 @@
-# Byte-compiled / optimized / DLL files
-**/__pycache__/
-**/*.pyc
-*.py[cod]
-*.pyo
-
 # Virtual environment
 .venv/
 .env/
 *.env
 .env*
-
-# IDE specific files (optional, depending on your IDE)
-.vscode/
-.idea/
-
-# Logs and database files (if any)
-*.log
-*.sqlite3
-*.db
-
-# Ignore pytest cache and coverage reports
-.pytest_cache/
-.coverage
-htmlcov/

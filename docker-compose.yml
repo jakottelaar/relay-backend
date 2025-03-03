@@ -1,15 +1,15 @@
 services:
   db:
-    container_name: relay-db
     image: postgres:latest
+    container_name: relay-postgres-db
     environment:
-      POSTGRES_DB: relay-db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: relay-db
     ports:
       - "6000:5432"
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - data:/var/lib/postgresql/data
 
 volumes:
-  db-data:
+  data:
