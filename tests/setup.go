@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -14,7 +15,9 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jakottelaar/relay-backend/config"
 	"github.com/jakottelaar/relay-backend/internal/infra"
+	"github.com/jakottelaar/relay-backend/internal/users"
 	_ "github.com/lib/pq"
+	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -117,44 +120,18 @@ func runMigrations(dsn string) error {
 	return nil
 }
 
-// type testMerchant struct {
-// 	token  string
-// 	apiKey string
-// }
+func createTestMerchant(t *testing.T, app *infra.App, req users.RegisterRequest) {
 
-// func createTestMerchant(t *testing.T, app *infra.App, req merchants.RegisterRequest) testMerchant {
+	// Register user
+	w := performRequest(t, app, http.MethodPost, "/api/v1/auth/register", req, nil)
+	assert.Equal(t, http.StatusCreated, w.Code)
 
-// 	// Register merchant
-// 	w := performRequest(t, app, http.MethodPost, "/api/v1/merchants/register", req, nil)
-// 	assert.Equal(t, http.StatusCreated, w.Code)
-
-// 	var signInResponse map[string]interface{}
-// 	err := json.Unmarshal(w.Body.Bytes(), &signInResponse)
-// 	if err != nil {
-// 		t.Fatalf("Error unmarshalling sign-in response: %v", err)
-// 	}
-
-// 	merchantAccount := signInResponse["merchant_account"].(map[string]interface{})
-// 	token := merchantAccount["access_token"].(string)
-
-// 	// Generate API key
-// 	headers := map[string]string{
-// 		"Authorization": "Bearer " + token,
-// 	}
-// 	w = performRequest(t, app, http.MethodPost, "/api/v1/merchants/api-keys", nil, headers)
-// 	assert.Equal(t, http.StatusOK, w.Code)
-
-// 	var apiKeyResponse map[string]interface{}
-// 	err = json.Unmarshal(w.Body.Bytes(), &apiKeyResponse)
-// 	if err != nil {
-// 		t.Fatalf("Error unmarshalling api key response: %v", err)
-// 	}
-
-// 	return testMerchant{
-// 		token:  token,
-// 		apiKey: apiKeyResponse["api_key"].(string),
-// 	}
-// }
+	var signInResponse map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &signInResponse)
+	if err != nil {
+		t.Fatalf("Error unmarshalling sign-in response: %v", err)
+	}
+}
 
 func performRequest(t *testing.T, app *infra.App, method, path string, payload interface{}, headers map[string]string) *httptest.ResponseRecorder {
 	var jsonBody []byte

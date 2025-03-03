@@ -29,6 +29,17 @@ type RegisterResponse struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type LoginRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
+}
+
+type LoginResponse struct {
+	UserID      uuid.UUID `json:"user_id"`
+	UserName    string    `json:"username"`
+	AccessToken string    `json:"access_token"`
+}
+
 type ProfileResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Username  string    `json:"username"`

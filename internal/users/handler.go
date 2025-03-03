@@ -21,6 +21,7 @@ func NewUserHandler(service UserService, cfg config.Config) *UserHandler {
 }
 
 func (h *UserHandler) RegisterUser(c *gin.Context) {
+
 	var req *RegisterRequest
 	err := c.BindJSON(&req)
 	if err != nil {
@@ -51,6 +52,27 @@ func (h *UserHandler) RegisterUser(c *gin.Context) {
 			AccessToken: token,
 			CreatedAt:   user.CreatedAt,
 		},
+	})
+
+}
+
+func (h *UserHandler) Login(c *gin.Context) {
+
+	var req *LoginRequest
+	err := c.BindJSON(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	resp, err := h.service.LoginUser(c.Request.Context(), req.Email, req.Password)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"result": resp,
 	})
 
 }

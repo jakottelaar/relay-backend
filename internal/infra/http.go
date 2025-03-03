@@ -69,6 +69,7 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config) {
 	auth := r.Group("/api/v1/auth")
 	{
 		auth.POST("/register", userHandler.RegisterUser)
+		auth.POST("/login", userHandler.Login)
 	}
 
 	users := r.Group("/api/v1/users")
