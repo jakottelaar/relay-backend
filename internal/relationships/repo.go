@@ -15,6 +15,7 @@ type RelationshipsRepo interface {
 	FindRelationshipByUserIDAndOtherUserID(ctx context.Context, userID, otherUserID uuid.UUID) (*Relationship, error)
 	UpdateRelationshipStatus(ctx context.Context, userID, otherUserID uuid.UUID, status RelationshipStatus) (*Relationship, error)
 	FindAllRelationshipsByUserID(ctx context.Context, userID uuid.UUID) ([]*Relationship, error)
+	DeleteRelationship(ctx context.Context, userID, otherUserID uuid.UUID) error
 }
 
 type relationshipsRepo struct {
@@ -164,4 +165,20 @@ func (r *relationshipsRepo) FindAllRelationshipsByUserID(ctx context.Context, us
 	}
 
 	return relationships, nil
+}
+
+func (r *relationshipsRepo) DeleteRelationship(ctx context.Context, userID, otherUserID uuid.UUID) error {
+	query := `DELETE FROM relationships
+			  WHERE (user_id = $1 AND other_user_id = $2)
+			  OR (user_id = $2 AND other_user_id = $1)`
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	_, err := r.db.ExecContext(ctx, query, userID, otherUserID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

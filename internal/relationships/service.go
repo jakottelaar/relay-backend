@@ -13,6 +13,7 @@ type RelationshipsService interface {
 	CreateRelationship(ctx context.Context, username string, current_user_id uuid.UUID) (*Relationship, error)
 	GetAllRelationships(ctx context.Context, current_user_id uuid.UUID) ([]*Relationship, error)
 	AcceptFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (*Relationship, error)
+	CancelOrDeclineFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (string, error)
 }
 
 type relationshipsService struct {
@@ -153,4 +154,57 @@ func (s *relationshipsService) AcceptFriendRequest(ctx context.Context, current_
 	}
 
 	return updatedRelationship, nil
+}
+
+func (s *relationshipsService) CancelOrDeclineFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (string, error) {
+	// Fetch target user to ensure they exist
+	targetUser, err := s.usersRepo.FindUserByID(ctx, other_user_id.String())
+	if err != nil {
+		return "", err
+	}
+	if targetUser == nil {
+		return "", internal.NewNotFoundError("User not found")
+	}
+
+	// Prevent cancelling a friend request to yourself
+	if targetUser.ID == current_user_id {
+		return "", internal.NewBadRequestError("Cannot cancel own friend request")
+	}
+
+	// Fetch the relationship record
+	relationship, err := s.relationshipsRepo.FindRelationshipByUserIDAndOtherUserID(ctx, current_user_id, other_user_id)
+	if err != nil {
+		return "", fmt.Errorf("could not find relationship: %w", err)
+	}
+	if relationship == nil {
+		return "", internal.NewBadRequestError("No friend request found")
+	}
+
+	// Check if they are already friends
+	if relationship.RelationshipStatus == RelationshipStatusFriend {
+		return "", internal.NewBadRequestError("Already friends")
+	}
+
+	// Ensure the friend request exists in the correct state
+	if relationship.RelationshipStatus == RelationshipStatusIncoming {
+		// Delete the incoming relationship
+		err = s.relationshipsRepo.DeleteRelationship(ctx, current_user_id, other_user_id)
+		if err != nil {
+			return "", fmt.Errorf("could not delete incoming relationship: %w", err)
+		}
+		return "Friend request declined", nil
+	}
+
+	// Ensure the friend request exists in the correct state
+	if relationship.RelationshipStatus != RelationshipStatusOutgoing {
+		return "", internal.NewBadRequestError("Unexpected relationship state")
+	}
+
+	// Delete the outgoing relationship
+	err = s.relationshipsRepo.DeleteRelationship(ctx, current_user_id, other_user_id)
+	if err != nil {
+		return "", fmt.Errorf("could not delete outgoing relationship: %w", err)
+	}
+
+	return "Friend request cancelled", nil
 }
