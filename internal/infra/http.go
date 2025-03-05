@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jakottelaar/relay-backend/config"
 	"github.com/jakottelaar/relay-backend/internal"
+	"github.com/jakottelaar/relay-backend/internal/relationships"
 	"github.com/jakottelaar/relay-backend/internal/users"
 )
 
@@ -63,7 +64,7 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config) {
 	r.GET("/health", handleHealth(db))
 
 	userRepo := users.NewUserRepo(db)
-	userService := users.NewUserService(userRepo)
+	userService := users.NewUserService(userRepo, cfg)
 	userHandler := users.NewUserHandler(userService, cfg)
 
 	auth := r.Group("/api/v1/auth")
@@ -76,6 +77,16 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config) {
 	users.Use(internal.JWTAuthMiddleware(&cfg))
 	{
 		users.GET("/me", userHandler.GetProfile)
+	}
+
+	relationShipsRepo := relationships.NewRelationshipsRepo(db)
+	relationShipsService := relationships.NewRelationshipsService(relationShipsRepo, userRepo)
+	relationshipsHandler := relationships.NewRelationshipsHandler(relationShipsService)
+
+	relationShips := r.Group("/api/v1/relationships")
+	relationShips.Use(internal.JWTAuthMiddleware(&cfg))
+	{
+		relationShips.POST("", relationshipsHandler.CreateRelationship)
 	}
 
 }

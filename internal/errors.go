@@ -11,6 +11,11 @@ var (
 	JWTAuthHeader = "Authorization"
 )
 
+var (
+	ErrUserNotFound        = errors.New("user not found")
+	ErrNoRelationshipFound = errors.New("no relationship found")
+)
+
 type ServiceError struct {
 	Code    int
 	Message string
@@ -37,7 +42,7 @@ func NewDuplicateError(msg string) error {
 	}
 }
 
-func NewInvalidInputError(msg string) error {
+func NewBadRequestError(msg string) error {
 	return &ServiceError{
 		Code:    http.StatusBadRequest,
 		Message: msg,

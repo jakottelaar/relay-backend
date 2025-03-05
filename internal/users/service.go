@@ -19,8 +19,11 @@ type userService struct {
 	cfg  config.Config
 }
 
-func NewUserService(repo UserRepo) UserService {
-	return &userService{repo: repo}
+func NewUserService(repo UserRepo, cfg config.Config) UserService {
+	return &userService{
+		repo: repo,
+		cfg:  cfg,
+	}
 }
 
 func (s *userService) CreateUser(ctx context.Context, user *User) (*User, error) {
