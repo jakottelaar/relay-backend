@@ -37,7 +37,7 @@ func (r *userRepo) SaveUser(ctx context.Context, user *User) (*User, error) {
 func (r *userRepo) FindUserByID(ctx context.Context, id string) (*User, error) {
 
 	query := `SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1`
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
 	var user User

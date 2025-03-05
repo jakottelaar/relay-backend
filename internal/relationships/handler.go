@@ -78,5 +78,48 @@ func (h *RelationshipsHandler) GetAllRelationships(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"relationships": relationships})
+	var relationshipsResponse []*GetRelationshipResponse
+	for _, relationship := range relationships {
+		relationshipsResponse = append(relationshipsResponse, &GetRelationshipResponse{
+			ID:                 relationship.ID,
+			UserID:             relationship.UserID,
+			OtherUserID:        relationship.OtherUserID,
+			RelationshipStatus: string(relationship.RelationshipStatus),
+			CreatedAt:          relationship.CreatedAt,
+			UpdatedAt:          relationship.UpdatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"relationships": relationshipsResponse})
+}
+
+func (h *RelationshipsHandler) AcceptFriendRequest(c *gin.Context) {
+	currentUserID, ok := c.Get("user_id")
+	if !ok {
+		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
+		return
+	}
+
+	userID, err := uuid.Parse(currentUserID.(string))
+	if err != nil {
+		log.Printf("relationships: failed to parse user_id: %v", err)
+		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
+		return
+	}
+
+	targetUserID, err := uuid.Parse(c.Param("target_user_id"))
+	if err != nil {
+		_ = c.Error(internal.NewBadRequestError("Invalid relationship id"))
+		return
+	}
+
+	_, err = h.service.AcceptFriendRequest(c.Request.Context(), userID, targetUserID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Friend request accepted",
+	})
 }
