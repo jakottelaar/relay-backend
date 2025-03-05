@@ -45,7 +45,7 @@ func TestUserLogin(t *testing.T) {
 	defer cleanup()
 
 	// Register user
-	createTestMerchant(t, app, users.RegisterRequest{
+	createTestUser(t, app, users.RegisterRequest{
 		Username: "test-username",
 		Email:    "test-user@mail.com",
 		Password: "test-password",

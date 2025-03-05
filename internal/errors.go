@@ -11,11 +11,6 @@ var (
 	JWTAuthHeader = "Authorization"
 )
 
-var (
-	ErrUserNotFound        = errors.New("user not found")
-	ErrNoRelationshipFound = errors.New("no relationship found")
-)
-
 type ServiceError struct {
 	Code    int
 	Message string

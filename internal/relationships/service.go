@@ -30,8 +30,13 @@ func (s *relationshipsService) CreateRelationship(ctx context.Context, username 
 	if err != nil {
 		return nil, err
 	}
+
 	if targetUser == nil {
-		return nil, internal.ErrUserNotFound
+		return nil, internal.NewNotFoundError("User not found")
+	}
+
+	if targetUser.ID == current_user_id {
+		return nil, internal.NewBadRequestError("Cannot send friend request to self")
 	}
 
 	existingRelationship, err := s.relationshipsRepo.FindRelationshipByUserIDAndOtherUserID(ctx, current_user_id, targetUser.ID)

@@ -120,7 +120,7 @@ func runMigrations(dsn string) error {
 	return nil
 }
 
-func createTestMerchant(t *testing.T, app *infra.App, req users.RegisterRequest) {
+func createTestUser(t *testing.T, app *infra.App, req users.RegisterRequest) {
 
 	// Register user
 	w := performRequest(t, app, http.MethodPost, "/api/v1/auth/register", req, nil)
@@ -131,6 +131,29 @@ func createTestMerchant(t *testing.T, app *infra.App, req users.RegisterRequest)
 	if err != nil {
 		t.Fatalf("Error unmarshalling sign-in response: %v", err)
 	}
+}
+
+func loginUser(t *testing.T, app *infra.App, req users.LoginRequest) string {
+	w := performRequest(t, app, http.MethodPost, "/api/v1/auth/login", req, nil)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var signInResponse map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &signInResponse)
+	if err != nil {
+		t.Fatalf("Error unmarshalling sign-in response: %v", err)
+	}
+
+	result, ok := signInResponse["result"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Result not found in response: %v", signInResponse)
+	}
+
+	token, ok := result["access_token"].(string)
+	if !ok {
+		t.Fatalf("Token not found in response: %v", signInResponse)
+	}
+
+	return token
 }
 
 func performRequest(t *testing.T, app *infra.App, method, path string, payload interface{}, headers map[string]string) *httptest.ResponseRecorder {
