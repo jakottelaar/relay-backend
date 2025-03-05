@@ -38,3 +38,12 @@ type CreateRelationshipResponse struct {
 	RelationshipStatus string    `json:"relationship_status"`
 	CreatedAt          time.Time `json:"created_at"`
 }
+
+type GetRelationshipResponse struct {
+	ID                 uuid.UUID `json:"id"`
+	UserID             uuid.UUID `json:"user_id"`
+	OtherUserID        uuid.UUID `json:"other_user_id"`
+	RelationshipStatus string    `json:"relationship_status"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}

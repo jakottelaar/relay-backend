@@ -96,7 +96,7 @@ func TestCreateFriendRequest(t *testing.T) {
 				"Authorization": "Bearer " + tt.token,
 			}
 
-			w := performRequest(t, app, http.MethodPost, "/api/v1/relationships", tt.payload, headers)
+			w := performRequest(t, app, http.MethodPost, "/api/v1/relationships/requests", tt.payload, headers)
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if w.Code != tt.wantStatus {
 				t.Errorf("Expected status %d but got %d: %s", tt.wantStatus, w.Code, w.Body.String())

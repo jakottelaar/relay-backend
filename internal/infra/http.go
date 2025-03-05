@@ -33,9 +33,6 @@ func NewApp(ctx context.Context, config *config.Config) (*App, error) {
 	router := gin.Default()
 	router.Use(
 		gin.Recovery(),
-		gin.LoggerWithConfig(gin.LoggerConfig{
-			SkipPaths: []string{"/health"},
-		}),
 	)
 
 	registerRoutes(router, db, *config)
@@ -86,7 +83,8 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config) {
 	relationShips := r.Group("/api/v1/relationships")
 	relationShips.Use(internal.JWTAuthMiddleware(&cfg))
 	{
-		relationShips.POST("", relationshipsHandler.CreateRelationship)
+		relationShips.POST("/requests", relationshipsHandler.CreateRelationship)
+		relationShips.GET("", relationshipsHandler.GetAllRelationships)
 	}
 
 }

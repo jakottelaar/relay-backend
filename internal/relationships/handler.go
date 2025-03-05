@@ -57,3 +57,26 @@ func (h *RelationshipsHandler) CreateRelationship(c *gin.Context) {
 	}})
 
 }
+
+func (h *RelationshipsHandler) GetAllRelationships(c *gin.Context) {
+	currentUserID, ok := c.Get("user_id")
+	if !ok {
+		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
+		return
+	}
+
+	userID, err := uuid.Parse(currentUserID.(string))
+	if err != nil {
+		log.Printf("relationships: failed to parse user_id: %v", err)
+		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
+		return
+	}
+
+	relationships, err := h.service.GetAllRelationships(c.Request.Context(), userID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"relationships": relationships})
+}

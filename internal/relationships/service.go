@@ -11,6 +11,7 @@ import (
 
 type RelationshipsService interface {
 	CreateRelationship(ctx context.Context, username string, current_user_id uuid.UUID) (*Relationship, error)
+	GetAllRelationships(ctx context.Context, current_user_id uuid.UUID) ([]*Relationship, error)
 }
 
 type relationshipsService struct {
@@ -89,4 +90,13 @@ func (s *relationshipsService) getOppositeStatus(status RelationshipStatus) Rela
 	default:
 		return status
 	}
+}
+
+func (s *relationshipsService) GetAllRelationships(ctx context.Context, current_user_id uuid.UUID) ([]*Relationship, error) {
+	relationships, err := s.relationshipsRepo.FindAllRelationshipsByUserID(ctx, current_user_id)
+	if err != nil {
+		return nil, fmt.Errorf("could not get relationships: %w", err)
+	}
+
+	return relationships, nil
 }

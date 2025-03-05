@@ -14,6 +14,7 @@ type RelationshipsRepo interface {
 	SaveRelationship(ctx context.Context, current_user_id, target_user_id uuid.UUID) (*Relationship, error)
 	FindRelationshipByUserIDAndOtherUserID(ctx context.Context, userID, otherUserID uuid.UUID) (*Relationship, error)
 	UpdateRelationshipStatus(ctx context.Context, userID, otherUserID uuid.UUID, status RelationshipStatus) (*Relationship, error)
+	FindAllRelationshipsByUserID(ctx context.Context, userID uuid.UUID) ([]*Relationship, error)
 }
 
 type relationshipsRepo struct {
@@ -139,4 +140,28 @@ func (r *relationshipsRepo) UpdateRelationshipStatus(ctx context.Context, userID
 	}
 
 	return &relationship, nil
+}
+
+func (r *relationshipsRepo) FindAllRelationshipsByUserID(ctx context.Context, userID uuid.UUID) ([]*Relationship, error) {
+	query := `SELECT id, user_id, other_user_id, relationship_status, created_at, updated_at
+			  FROM relationships
+			  WHERE user_id = $1`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var relationships []*Relationship
+	for rows.Next() {
+		var relationship Relationship
+		err := rows.Scan(&relationship.ID, &relationship.UserID, &relationship.OtherUserID, &relationship.RelationshipStatus, &relationship.CreatedAt, &relationship.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		relationships = append(relationships, &relationship)
+	}
+
+	return relationships, nil
 }
