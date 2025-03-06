@@ -18,6 +18,13 @@ func sendFriendRequest(t *testing.T, app *infra.App, token, username string, wan
 	assert.Equal(t, wantStatus, w.Code)
 }
 
+func acceptFriendRequest(t *testing.T, app *infra.App, token, otherUserID string, wantStatus int) {
+	w := performRequest(t, app, http.MethodPatch, "/api/v1/relationships/users/"+otherUserID+"/friend-requests", nil, map[string]string{
+		"Authorization": "Bearer " + token,
+	})
+	assert.Equal(t, wantStatus, w.Code)
+}
+
 func TestCreateFriendRequest(t *testing.T) {
 	app, cleanup := setupTestApp(t)
 	defer cleanup()
@@ -242,5 +249,64 @@ func TestCancelOrDeclineFriendRequest(t *testing.T) {
 
 		})
 
+	}
+}
+
+func TestRemoveFriend(t *testing.T) {
+	app, cleanup := setupTestApp(t)
+	defer cleanup()
+
+	// Create users
+	user1 := createTestUser(t, app, users.RegisterRequest{
+		Username: "user1",
+		Email:    "user1@mail.com",
+		Password: "password",
+	})
+
+	user2 := createTestUser(t, app, users.RegisterRequest{
+		Username: "user2",
+		Email:    "user2@mail.com",
+		Password: "password",
+	})
+
+	// User 1 sends friend request to User 2
+	sendFriendRequest(t, app, user1.AccessToken, "user2", http.StatusCreated)
+
+	// User 2 accepts friend request
+	acceptFriendRequest(t, app, user2.AccessToken, user1.ID.String(), http.StatusOK)
+
+	tests := []struct {
+		name        string
+		token       string
+		OtherUserID string
+		wantStatus  int
+	}{
+		{
+			name:        "valid remove friend",
+			token:       user1.AccessToken,
+			OtherUserID: user2.ID.String(),
+			wantStatus:  http.StatusOK,
+		},
+		{
+			name:        "error: remove friend that does not exist",
+			token:       user1.AccessToken,
+			OtherUserID: "00000000-0000-0000-0000-000000000000",
+			wantStatus:  http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			headers := map[string]string{
+				"Authorization": "Bearer " + tt.token,
+			}
+
+			w := performRequest(t, app, http.MethodDelete, "/api/v1/relationships/users/"+tt.OtherUserID+"/friends", nil, headers)
+			assert.Equal(t, tt.wantStatus, w.Code)
+
+			if w.Code != tt.wantStatus {
+				t.Errorf("Expected status %d but got %d: %s", tt.wantStatus, w.Code, w.Body.String())
+			}
+		})
 	}
 }

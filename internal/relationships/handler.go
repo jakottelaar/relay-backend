@@ -157,3 +157,36 @@ func (h *RelationshipsHandler) CancelOrDeclineFriendRequest(c *gin.Context) {
 		"message": message,
 	})
 }
+
+func (h *RelationshipsHandler) RemoveFriend(c *gin.Context) {
+
+	currentUserID, ok := c.Get("user_id")
+	if !ok {
+		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
+		return
+	}
+
+	userID, err := uuid.Parse(currentUserID.(string))
+	if err != nil {
+		log.Printf("relationships: failed to parse user_id: %v", err)
+		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
+		return
+	}
+
+	targetUserID, err := uuid.Parse(c.Param("target_user_id"))
+	if err != nil {
+		_ = c.Error(internal.NewBadRequestError("Invalid target user id"))
+		return
+	}
+
+	err = h.service.RemoveFriend(c.Request.Context(), userID, targetUserID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Friend removed",
+	})
+
+}

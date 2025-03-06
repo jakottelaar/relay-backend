@@ -87,6 +87,7 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config) {
 		relationShips.GET("", relationshipsHandler.GetAllRelationships)
 		relationShips.PATCH("/users/:target_user_id/friend-requests", relationshipsHandler.AcceptFriendRequest)
 		relationShips.DELETE("/users/:target_user_id/friend-requests", relationshipsHandler.CancelOrDeclineFriendRequest)
+		relationShips.DELETE("/users/:target_user_id/friends", relationshipsHandler.RemoveFriend)
 	}
 
 }

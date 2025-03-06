@@ -14,6 +14,7 @@ type RelationshipsService interface {
 	GetAllRelationships(ctx context.Context, current_user_id uuid.UUID) ([]*Relationship, error)
 	AcceptFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (*Relationship, error)
 	CancelOrDeclineFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (string, error)
+	RemoveFriend(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) error
 }
 
 type relationshipsService struct {
@@ -207,4 +208,39 @@ func (s *relationshipsService) CancelOrDeclineFriendRequest(ctx context.Context,
 	}
 
 	return "Friend request cancelled", nil
+}
+
+func (s *relationshipsService) RemoveFriend(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) error {
+	targetUser, err := s.usersRepo.FindUserByID(ctx, other_user_id.String())
+	if err != nil {
+		return err
+	}
+	if targetUser == nil {
+		return internal.NewNotFoundError("User not found")
+	}
+
+	relationship, err := s.relationshipsRepo.FindRelationshipByUserIDAndOtherUserID(ctx, current_user_id, other_user_id)
+	if err != nil {
+		return fmt.Errorf("could not find relationship: %w", err)
+	}
+
+	if relationship == nil {
+		return internal.NewBadRequestError("No relationship found")
+	}
+
+	if relationship.RelationshipStatus != RelationshipStatusFriend {
+		return internal.NewBadRequestError("Not friends")
+	}
+
+	err = s.relationshipsRepo.DeleteRelationship(ctx, current_user_id, other_user_id)
+	if err != nil {
+		return fmt.Errorf("could not delete relationship: %w", err)
+	}
+
+	err = s.relationshipsRepo.DeleteRelationship(ctx, other_user_id, current_user_id)
+	if err != nil {
+		return fmt.Errorf("could not delete other user's relationship: %w", err)
+	}
+
+	return nil
 }
