@@ -28,7 +28,7 @@ type Relationship struct {
 }
 
 type CreateRelationshipRequest struct {
-	Username string `json:"username" binding:"required"`
+	Username string `json:"username" binding:"required" validate:"min=3,max=64"`
 }
 
 type CreateRelationshipResponse struct {

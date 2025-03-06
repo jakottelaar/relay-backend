@@ -13,6 +13,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/google/uuid"
 	"github.com/jakottelaar/relay-backend/config"
 	"github.com/jakottelaar/relay-backend/internal/infra"
 	"github.com/jakottelaar/relay-backend/internal/users"
@@ -120,7 +121,7 @@ func runMigrations(dsn string) error {
 	return nil
 }
 
-func createTestUser(t *testing.T, app *infra.App, req users.RegisterRequest) {
+func createTestUser(t *testing.T, app *infra.App, req users.RegisterRequest) *users.RegisterResponse {
 
 	// Register user
 	w := performRequest(t, app, http.MethodPost, "/api/v1/auth/register", req, nil)
@@ -130,6 +131,23 @@ func createTestUser(t *testing.T, app *infra.App, req users.RegisterRequest) {
 	err := json.Unmarshal(w.Body.Bytes(), &signInResponse)
 	if err != nil {
 		t.Fatalf("Error unmarshalling sign-in response: %v", err)
+	}
+
+	resp, ok := signInResponse["user"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Result not found in response: %v", signInResponse)
+	}
+
+	ID, err := uuid.Parse(resp["id"].(string))
+	if err != nil {
+		t.Fatalf("Error parsing UUID: %v", err)
+	}
+
+	return &users.RegisterResponse{
+		ID:          ID,
+		Username:    resp["username"].(string),
+		Email:       resp["email"].(string),
+		AccessToken: resp["access_token"].(string),
 	}
 }
 

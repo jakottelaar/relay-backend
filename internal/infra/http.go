@@ -83,10 +83,10 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config) {
 	relationShips := r.Group("/api/v1/relationships")
 	relationShips.Use(internal.JWTAuthMiddleware(&cfg))
 	{
-		relationShips.POST("/requests", relationshipsHandler.CreateRelationship)
+		relationShips.POST("/friend-requests", relationshipsHandler.CreateRelationship)
 		relationShips.GET("", relationshipsHandler.GetAllRelationships)
-		relationShips.PATCH("/:target_user_id/requests", relationshipsHandler.AcceptFriendRequest)
-		relationShips.DELETE("/:target_user_id/requests", relationshipsHandler.CancelOrDeclineFriendRequest)
+		relationShips.PATCH("/users/:target_user_id/friend-requests", relationshipsHandler.AcceptFriendRequest)
+		relationShips.DELETE("/users/:target_user_id/friend-requests", relationshipsHandler.CancelOrDeclineFriendRequest)
 	}
 
 }

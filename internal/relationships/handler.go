@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator"
 	"github.com/google/uuid"
 	"github.com/jakottelaar/relay-backend/internal"
 )
@@ -19,17 +20,19 @@ func NewRelationshipsHandler(service RelationshipsService) *RelationshipsHandler
 
 func (h *RelationshipsHandler) CreateRelationship(c *gin.Context) {
 	var req CreateRelationshipRequest
-
-	log.Printf("CreateRelationshipRequest: %v", req.Username)
-
-	err := c.BindJSON(&req)
-	if err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
+	validate := validator.New()
+
+	if err := validate.Struct(req); err != nil {
+		_ = c.Error(internal.NewUnprocessableEntityError("Invalid input: " + err.Error()))
+		return
+	}
+
 	currentUserID, ok := c.Get("user_id")
-	log.Printf("currentUserID: %v", currentUserID)
 	if !ok {
 		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
 		return
