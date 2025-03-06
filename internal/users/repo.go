@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/jakottelaar/relay-backend/internal"
 )
 
 type UserRepo interface {
@@ -28,7 +30,14 @@ func (r *userRepo) SaveUser(ctx context.Context, user *User) (*User, error) {
 	err := r.db.QueryRowContext(ctx, query, user.Username, user.Email, user.Password).Scan(&user.ID, &user.CreatedAt)
 
 	if err != nil {
-		return nil, err
+		switch err.Error() {
+		case "pq: duplicate key value violates unique constraint \"users_email_key\"":
+			return nil, internal.NewDuplicateError("email already exists")
+		case "pq: duplicate key value violates unique constraint \"users_username_key\"":
+			return nil, internal.NewDuplicateError("username already exists")
+		default:
+			return nil, err
+		}
 	}
 
 	return user, nil

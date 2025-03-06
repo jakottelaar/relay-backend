@@ -26,6 +26,89 @@ func TestRegisterUser(t *testing.T) {
 			},
 			wantStatus: http.StatusCreated,
 		},
+		{
+			name: "missing username",
+			payload: map[string]interface{}{
+				"email":    "test-email2@mail.com",
+				"password": "test-password",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "missing email",
+			payload: map[string]interface{}{
+				"username": "test-username2",
+				"password": "test-password",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "missing password",
+			payload: map[string]interface{}{
+				"username": "test-username3",
+				"email":    "test-email3@mail.com",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "invalid email",
+			payload: map[string]interface{}{
+				"username": "test-username4",
+				"email":    "test-email4",
+				"password": "test-password",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "short password",
+			payload: map[string]interface{}{
+				"username": "test-username5",
+				"email":    "test-email5@mail.com",
+				"password": "st",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "long password",
+			payload: map[string]interface{}{
+				"username": "test-username6",
+				"email":    "test-email6@mail.com",
+				"password": "thispasswordiswaytoolongandshouldnotbeacceptedABCDEFGHIJKLMNOPQRSTUVWXZABCDEFGHIJKLMNOPQRSTUVWXZ",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "duplicate email",
+			payload: map[string]interface{}{
+				"username": "test-username7",
+				"email":    "test-email@mail.com",
+				"password": "test-password",
+			},
+			wantStatus: http.StatusConflict,
+		},
+		{
+			name: "duplicate username",
+			payload: map[string]interface{}{
+				"username": "test-username",
+				"email":    "test-email2@mail.com",
+				"password": "test-password",
+			},
+			wantStatus: http.StatusConflict,
+		},
+		{
+			name: "invalid payload",
+			payload: map[string]interface{}{
+				"username": "test-username",
+				"email":    "test-email@mail.com",
+				"password": 123,
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "empty payload",
+			payload:    map[string]interface{}{},
+			wantStatus: http.StatusBadRequest,
+		},
 	}
 
 	for _, tt := range tests {
@@ -63,6 +146,36 @@ func TestUserLogin(t *testing.T) {
 				"password": "test-password",
 			},
 			wantStatus: http.StatusOK,
+		},
+		{
+			name: "missing email",
+			payload: map[string]interface{}{
+				"password": "test-password",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "missing password",
+			payload: map[string]interface{}{
+				"email": "test-user@mail.com",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "invalid email",
+			payload: map[string]interface{}{
+				"email":    "test-user",
+				"password": "test-password",
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "user not found",
+			payload: map[string]interface{}{
+				"email":    "test-nonexistinguser@mail.com",
+				"password": "test-password",
+			},
+			wantStatus: http.StatusNotFound,
 		},
 	}
 

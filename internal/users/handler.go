@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator"
 	"github.com/jakottelaar/relay-backend/config"
 	"github.com/jakottelaar/relay-backend/internal"
 )
@@ -23,18 +24,26 @@ func NewUserHandler(service UserService, cfg config.Config) *UserHandler {
 func (h *UserHandler) RegisterUser(c *gin.Context) {
 
 	var req *RegisterRequest
-	err := c.BindJSON(&req)
-	if err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	validate := validator.New()
+
+	if err := validate.Struct(req); err != nil {
+		_ = c.Error(internal.NewUnprocessableEntityError("Invalid input: " + err.Error()))
+		return
+	}
+
 	user, err := h.service.CreateUser(c.Request.Context(), &User{
 		Username: req.Username,
 		Email:    req.Email,
 		Password: req.Password,
 	})
+
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		_ = c.Error(err)
 		return
 	}
 
@@ -59,9 +68,15 @@ func (h *UserHandler) RegisterUser(c *gin.Context) {
 func (h *UserHandler) Login(c *gin.Context) {
 
 	var req *LoginRequest
-	err := c.BindJSON(&req)
-	if err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	validate := validator.New()
+
+	if err := validate.Struct(req); err != nil {
+		_ = c.Error(internal.NewUnprocessableEntityError("Invalid input: " + err.Error()))
 		return
 	}
 
@@ -93,7 +108,7 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"users": &ProfileResponse{
+		"user": &ProfileResponse{
 			ID:        user.ID,
 			Username:  user.Username,
 			Email:     user.Email,
