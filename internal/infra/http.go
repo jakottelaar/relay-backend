@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jakottelaar/relay-backend/config"
 	"github.com/jakottelaar/relay-backend/internal"
+	"github.com/jakottelaar/relay-backend/internal/channels"
 	"github.com/jakottelaar/relay-backend/internal/relationships"
 	"github.com/jakottelaar/relay-backend/internal/users"
 )
@@ -88,6 +89,16 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config) {
 		relationShips.PATCH("/users/:target_user_id/friend-requests", relationshipsHandler.AcceptFriendRequest)
 		relationShips.DELETE("/users/:target_user_id/friend-requests", relationshipsHandler.CancelOrDeclineFriendRequest)
 		relationShips.DELETE("/users/:target_user_id/friends", relationshipsHandler.RemoveFriend)
+	}
+
+	channelsRepo := channels.NewChannelsRepo(db)
+	channelsService := channels.NewChannelsService(channelsRepo)
+	channelsHandler := channels.NewChannelsHandler(channelsService)
+
+	channels := r.Group("/api/v1/channels")
+	channels.Use(internal.JWTAuthMiddleware(&cfg))
+	{
+		channels.POST("", channelsHandler.CreateChannel)
 	}
 
 }

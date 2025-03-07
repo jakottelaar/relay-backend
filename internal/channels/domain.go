@@ -30,8 +30,8 @@ type ChannelMember struct {
 }
 
 type CreateChannelRequest struct {
-	Name        string      `json:"name" binding:"required"`
-	ChannelType ChannelType `json:"channel_type" binding:"required"`
+	Name        string      `json:"name" binding:"required" validate:"min=3,max=50"`
+	ChannelType ChannelType `json:"channel_type" binding:"required" validate:"required,oneof=dm group"`
 }
 
 type CreateChannelResponse struct {
