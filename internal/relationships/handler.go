@@ -21,7 +21,7 @@ func NewRelationshipsHandler(service RelationshipsService) *RelationshipsHandler
 func (h *RelationshipsHandler) CreateRelationship(c *gin.Context) {
 	var req CreateRelationshipRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		_ = c.Error(internal.NewBadRequestError("Invalid request body"))
 		return
 	}
 
