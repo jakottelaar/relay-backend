@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCreateChannel(t *testing.T) {
+func TestCreateDMChannel(t *testing.T) {
 	app, cleanup := setupTestApp(t)
 	defer cleanup()
 
@@ -18,45 +18,29 @@ func TestCreateChannel(t *testing.T) {
 		Password: "test-password",
 	})
 
+	user2 := createTestUser(t, app, users.RegisterRequest{
+		Username: "test-username2",
+		Email:    "test-user2@mail.com",
+		Password: "test-password",
+	})
+
 	tests := []struct {
-		name       string
-		payload    map[string]any
-		token      string
-		wantStatus int
+		name         string
+		token        string
+		targetUserID string
+		wantStatus   int
 	}{
 		{
-			name: "valid channel",
-			payload: map[string]any{
-				"name":         "test-channel",
-				"channel_type": "dm",
-			},
-			token:      user1.AccessToken,
-			wantStatus: http.StatusCreated,
+			name:         "valid request",
+			token:        user1.AccessToken,
+			targetUserID: user2.ID.String(),
+			wantStatus:   http.StatusOK,
 		},
 		{
-			name: "missing name",
-			payload: map[string]any{
-				"channel_type": "dm",
-			},
-			token:      user1.AccessToken,
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name: "missing channel type",
-			payload: map[string]any{
-				"name": "test-channel",
-			},
-			token:      user1.AccessToken,
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name: "invalid channel type",
-			payload: map[string]any{
-				"name":         "test-channel",
-				"channel_type": "invalid",
-			},
-			token:      user1.AccessToken,
-			wantStatus: http.StatusUnprocessableEntity,
+			name:         "invalid request",
+			token:        user1.AccessToken,
+			targetUserID: "invalid-user-id",
+			wantStatus:   http.StatusBadRequest,
 		},
 	}
 
@@ -66,7 +50,7 @@ func TestCreateChannel(t *testing.T) {
 				"Authorization": "Bearer " + tt.token,
 			}
 
-			w := performRequest(t, app, http.MethodPost, "/api/v1/channels", tt.payload, headers)
+			w := performRequest(t, app, http.MethodGet, "/api/v1/users/"+tt.targetUserID+"/dm", nil, headers)
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if w.Code != tt.wantStatus {
 				t.Errorf("Expected status %d but got %d: %s", tt.wantStatus, w.Code, w.Body.String())

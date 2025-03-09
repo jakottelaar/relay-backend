@@ -29,12 +29,7 @@ type ChannelMember struct {
 	JoinedAt  time.Time
 }
 
-type CreateChannelRequest struct {
-	Name        string      `json:"name" binding:"required" validate:"min=3,max=50"`
-	ChannelType ChannelType `json:"channel_type" binding:"required" validate:"required,oneof=dm group"`
-}
-
-type CreateChannelResponse struct {
+type GetChannelResponse struct {
 	ID          string      `json:"id"`
 	Name        string      `json:"name"`
 	OwnerID     uuid.UUID   `json:"owner_id"`

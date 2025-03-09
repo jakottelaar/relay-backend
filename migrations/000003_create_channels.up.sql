@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS channel_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     channel_id UUID REFERENCES channels(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    channel_hidden BOOLEAN DEFAULT FALSE,
     joined_at TIMESTAMP DEFAULT NOW(),
     UNIQUE (channel_id, user_id)
 );

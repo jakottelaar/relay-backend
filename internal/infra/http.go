@@ -95,10 +95,10 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config) {
 	channelsService := channels.NewChannelsService(channelsRepo)
 	channelsHandler := channels.NewChannelsHandler(channelsService)
 
-	channels := r.Group("/api/v1/channels")
-	channels.Use(internal.JWTAuthMiddleware(&cfg))
+	dmChannels := r.Group("/api/v1/users")
+	dmChannels.Use(internal.JWTAuthMiddleware(&cfg))
 	{
-		channels.POST("", channelsHandler.CreateChannel)
+		dmChannels.GET("/:target_user_id/dm", channelsHandler.GetDMChannel)
 	}
 
 }

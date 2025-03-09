@@ -2,12 +2,13 @@ package channels
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 )
 
 type ChannelsService interface {
-	CreateChannel(ctx context.Context, name string, owner_id uuid.UUID, channel_type ChannelType) (*Channel, error)
+	GetDMChannel(ctx context.Context, userId, targetUserID uuid.UUID) (*Channel, error)
 }
 
 type channelsService struct {
@@ -20,17 +21,17 @@ func NewChannelsService(channelsRepo ChannelsRepo) ChannelsService {
 	}
 }
 
-func (s *channelsService) CreateChannel(ctx context.Context, name string, owner_id uuid.UUID, channel_type ChannelType) (*Channel, error) {
-	channel := &Channel{
-		Name:        name,
-		OwnerID:     owner_id,
-		ChannelType: channel_type,
-	}
-
-	savedChannel, err := s.channelsRepo.SaveChannel(ctx, channel)
+func (s *channelsService) GetDMChannel(ctx context.Context, userId, targetUserID uuid.UUID) (*Channel, error) {
+	channel, err := s.channelsRepo.FindDMChannelByUserIDs(ctx, userId, targetUserID)
 	if err != nil {
-		return nil, err
+		// Any other error should be returned
+		return nil, fmt.Errorf("error finding DM channel: %w", err)
 	}
 
-	return savedChannel, nil
+	if channel == nil {
+		return s.channelsRepo.SaveDMChannel(ctx, userId, targetUserID)
+	}
+
+	// Channel was found, return it
+	return channel, nil
 }

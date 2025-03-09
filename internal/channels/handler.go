@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator"
 	"github.com/google/uuid"
 	"github.com/jakottelaar/relay-backend/internal"
 )
@@ -18,7 +17,7 @@ func NewChannelsHandler(service ChannelsService) *ChannelsHandler {
 	return &ChannelsHandler{service: service}
 }
 
-func (h *ChannelsHandler) CreateChannel(c *gin.Context) {
+func (h *ChannelsHandler) GetDMChannel(c *gin.Context) {
 	currentUserId, ok := c.Get("user_id")
 	if !ok {
 		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
@@ -32,27 +31,20 @@ func (h *ChannelsHandler) CreateChannel(c *gin.Context) {
 		return
 	}
 
-	var req CreateChannelRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		_ = c.Error(internal.NewBadRequestError("Invalid request body"))
+	targetUserID, err := uuid.Parse(c.Param("target_user_id"))
+	if err != nil {
+		_ = c.Error(internal.NewBadRequestError("Invalid target user id"))
 		return
 	}
 
-	validate := validator.New()
-
-	if err := validate.Struct(req); err != nil {
-		_ = c.Error(internal.NewUnprocessableEntityError("Invalid input: " + err.Error()))
-		return
-	}
-
-	channel, err := h.service.CreateChannel(c.Request.Context(), req.Name, userId, req.ChannelType)
+	channel, err := h.service.GetDMChannel(c.Request.Context(), userId, targetUserID)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"channel": &CreateChannelResponse{
+	c.JSON(http.StatusOK, gin.H{
+		"channel": &GetChannelResponse{
 			ID:          channel.ID,
 			Name:        channel.Name,
 			OwnerID:     channel.OwnerID,
