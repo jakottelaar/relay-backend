@@ -53,3 +53,51 @@ func (h *ChannelsHandler) GetDMChannel(c *gin.Context) {
 		},
 	})
 }
+
+func (h *ChannelsHandler) CreateGroupChannel(c *gin.Context) {
+	currentUserId, ok := c.Get("user_id")
+	if !ok {
+		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
+		return
+	}
+
+	userId, err := uuid.Parse(currentUserId.(string))
+	if err != nil {
+		log.Printf("channels: failed to parse user_id: %v", err)
+		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
+		return
+	}
+
+	var req CreateGroupChannelRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(internal.NewBadRequestError("Invalid request body"))
+		return
+	}
+
+	userIds := make([]uuid.UUID, 0, len(req.UserIDs))
+	for _, id := range req.UserIDs {
+		userId, err := uuid.Parse(id)
+		if err != nil {
+			_ = c.Error(internal.NewBadRequestError("Invalid user id"))
+			return
+		}
+
+		userIds = append(userIds, userId)
+	}
+
+	channel, err := h.service.CreateGroupChannel(c.Request.Context(), userId, req.Name, userIds)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"channel": &GetChannelResponse{
+			ID:          channel.ID,
+			Name:        channel.Name,
+			OwnerID:     channel.OwnerID,
+			ChannelType: channel.ChannelType,
+			CreatedAt:   channel.CreatedAt,
+		},
+	})
+}

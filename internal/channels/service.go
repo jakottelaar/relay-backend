@@ -9,6 +9,7 @@ import (
 
 type ChannelsService interface {
 	GetDMChannel(ctx context.Context, userId, targetUserID uuid.UUID) (*Channel, error)
+	CreateGroupChannel(ctx context.Context, userId uuid.UUID, name string, userIDs []uuid.UUID) (*Channel, error)
 }
 
 type channelsService struct {
@@ -34,4 +35,13 @@ func (s *channelsService) GetDMChannel(ctx context.Context, userId, targetUserID
 
 	// Channel was found, return it
 	return channel, nil
+}
+
+func (s *channelsService) CreateGroupChannel(ctx context.Context, userId uuid.UUID, name string, userIDs []uuid.UUID) (*Channel, error) {
+	savedChannel, err := s.channelsRepo.SaveGroupChannel(ctx, userId, name, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("error saving group channel: %w", err)
+	}
+
+	return savedChannel, nil
 }

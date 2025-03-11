@@ -101,6 +101,12 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config) {
 		dmChannels.GET("/:target_user_id/dm", channelsHandler.GetDMChannel)
 	}
 
+	channels := r.Group("/api/v1/channels")
+	channels.Use(internal.JWTAuthMiddleware(&cfg))
+	{
+		channels.POST("/groups", channelsHandler.CreateGroupChannel)
+	}
+
 }
 
 func (a *App) Shutdown(ctx context.Context) error {
