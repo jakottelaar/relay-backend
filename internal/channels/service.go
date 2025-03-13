@@ -10,6 +10,7 @@ import (
 type ChannelsService interface {
 	GetDMChannel(ctx context.Context, userId, targetUserID uuid.UUID) (*Channel, error)
 	CreateGroupChannel(ctx context.Context, userId uuid.UUID, name string, channelMemberIDs []uuid.UUID) (*Channel, []uuid.UUID, error)
+	GetAllChannels(ctx context.Context, userId uuid.UUID) ([]*Channel, error)
 }
 
 type channelsService struct {
@@ -44,4 +45,13 @@ func (s *channelsService) CreateGroupChannel(ctx context.Context, ownerUserID uu
 	}
 
 	return savedChannel, memberIDs, nil
+}
+
+func (s *channelsService) GetAllChannels(ctx context.Context, userId uuid.UUID) ([]*Channel, error) {
+	channels, err := s.channelsRepo.FindAllChannelsByUserID(ctx, userId)
+	if err != nil {
+		return nil, fmt.Errorf("error finding all channels: %w", err)
+	}
+
+	return channels, nil
 }

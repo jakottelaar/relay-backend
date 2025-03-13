@@ -91,3 +91,39 @@ func (h *ChannelsHandler) CreateGroupChannel(c *gin.Context) {
 		},
 	})
 }
+
+func (h *ChannelsHandler) GetAllChannels(c *gin.Context) {
+	currentUserId, ok := c.Get("user_id")
+	if !ok {
+		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
+		return
+	}
+
+	userId, err := uuid.Parse(currentUserId.(string))
+	if err != nil {
+		log.Printf("channels: failed to parse user_id: %v", err)
+		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
+		return
+	}
+
+	fetchedChannels, err := h.service.GetAllChannels(c.Request.Context(), userId)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	channelsResponse := make([]*GetChannelResponse, 0, len(fetchedChannels))
+	for _, channel := range fetchedChannels {
+		channelsResponse = append(channelsResponse, &GetChannelResponse{
+			ID:          channel.ID,
+			Name:        channel.Name,
+			OwnerID:     channel.OwnerID,
+			ChannelType: channel.ChannelType,
+			CreatedAt:   channel.CreatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"channels": channelsResponse,
+	})
+}

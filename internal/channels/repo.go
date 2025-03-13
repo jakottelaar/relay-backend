@@ -16,6 +16,7 @@ type ChannelsRepo interface {
 	SaveDMChannel(ctx context.Context, userId, targetUserID uuid.UUID) (*Channel, error)
 	AddUserToChannel(ctx context.Context, channelID, userID uuid.UUID, tx *sql.Tx) (uuid.UUID, error)
 	SaveGroupChannel(ctx context.Context, ownerUserID uuid.UUID, name string, channelMemberIDs []uuid.UUID) (*Channel, []uuid.UUID, error)
+	FindAllChannelsByUserID(ctx context.Context, userID uuid.UUID) ([]*Channel, error)
 }
 
 type channelsRepo struct {
@@ -187,4 +188,33 @@ func (r *channelsRepo) SaveGroupChannel(ctx context.Context, ownerUserID uuid.UU
 	log.Printf("channel members: %v", memberUserIDs)
 
 	return savedChannel, memberUserIDs, nil
+}
+
+func (r *channelsRepo) FindAllChannelsByUserID(ctx context.Context, userID uuid.UUID) ([]*Channel, error) {
+	query := `
+		SELECT c.id, c.name, c.owner_id, c.type, c.created_at, c.updated_at
+		FROM channels c
+		JOIN channel_members cm ON c.id = cm.channel_id
+		WHERE cm.user_id = $1
+	`
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	channels := []*Channel{}
+	for rows.Next() {
+		channel := &Channel{}
+		err := rows.Scan(&channel.ID, &channel.Name, &channel.OwnerID, &channel.ChannelType, &channel.CreatedAt, &channel.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		channels = append(channels, channel)
+	}
+
+	return channels, nil
 }

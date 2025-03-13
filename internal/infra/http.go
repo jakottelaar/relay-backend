@@ -105,6 +105,7 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config) {
 	channels.Use(internal.JWTAuthMiddleware(&cfg))
 	{
 		channels.POST("/groups", channelsHandler.CreateGroupChannel)
+		channels.GET("", channelsHandler.GetAllChannels)
 	}
 
 }
