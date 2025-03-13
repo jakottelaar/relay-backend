@@ -74,30 +74,20 @@ func (h *ChannelsHandler) CreateGroupChannel(c *gin.Context) {
 		return
 	}
 
-	userIds := make([]uuid.UUID, 0, len(req.UserIDs))
-	for _, id := range req.UserIDs {
-		userId, err := uuid.Parse(id)
-		if err != nil {
-			_ = c.Error(internal.NewBadRequestError("Invalid user id"))
-			return
-		}
-
-		userIds = append(userIds, userId)
-	}
-
-	channel, err := h.service.CreateGroupChannel(c.Request.Context(), ownerUserID, req.Name, userIds)
+	channel, members, err := h.service.CreateGroupChannel(c.Request.Context(), ownerUserID, req.Name, req.ChannelMemberIDs)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"channel": &GetChannelResponse{
-			ID:          channel.ID,
-			Name:        channel.Name,
-			OwnerID:     channel.OwnerID,
-			ChannelType: channel.ChannelType,
-			CreatedAt:   channel.CreatedAt,
+		"channel": &CreateGroupChannelResponse{
+			ID:             channel.ID,
+			Name:           channel.Name,
+			OwnerID:        channel.OwnerID,
+			ChannelType:    channel.ChannelType,
+			ChannelMembers: members,
+			CreatedAt:      channel.CreatedAt,
 		},
 	})
 }

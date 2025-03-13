@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,8 +14,8 @@ type ChannelsRepo interface {
 	SaveChannel(ctx context.Context, channel *Channel, tx *sql.Tx) (*Channel, error)
 	FindDMChannelByUserIDs(ctx context.Context, userID, targetUserID uuid.UUID) (*Channel, error)
 	SaveDMChannel(ctx context.Context, userId, targetUserID uuid.UUID) (*Channel, error)
-	AddUserToChannel(ctx context.Context, channelID, userID uuid.UUID, tx *sql.Tx) error
-	SaveGroupChannel(ctx context.Context, ownerUserID uuid.UUID, name string, userIDs []uuid.UUID) (*Channel, error)
+	AddUserToChannel(ctx context.Context, channelID, userID uuid.UUID, tx *sql.Tx) (uuid.UUID, error)
+	SaveGroupChannel(ctx context.Context, ownerUserID uuid.UUID, name string, channelMemberIDs []uuid.UUID) (*Channel, []uuid.UUID, error)
 }
 
 type channelsRepo struct {
@@ -99,11 +100,11 @@ func (r *channelsRepo) SaveDMChannel(ctx context.Context, userId, targetUserID u
 		return nil, fmt.Errorf("invalid channel ID: %w", err)
 	}
 
-	if err := r.AddUserToChannel(ctx, channelID, userId, tx); err != nil {
+	if _, err := r.AddUserToChannel(ctx, channelID, userId, tx); err != nil {
 		return nil, fmt.Errorf("failed to add owner to channel: %w", err)
 	}
 
-	if err := r.AddUserToChannel(ctx, channelID, targetUserID, tx); err != nil {
+	if _, err := r.AddUserToChannel(ctx, channelID, targetUserID, tx); err != nil {
 		return nil, fmt.Errorf("failed to add target user to channel: %w", err)
 	}
 
@@ -114,7 +115,7 @@ func (r *channelsRepo) SaveDMChannel(ctx context.Context, userId, targetUserID u
 	return savedChannel, nil
 }
 
-func (r *channelsRepo) AddUserToChannel(ctx context.Context, channelID, userID uuid.UUID, tx *sql.Tx) error {
+func (r *channelsRepo) AddUserToChannel(ctx context.Context, channelID, userID uuid.UUID, tx *sql.Tx) (uuid.UUID, error) {
 	query := `
 		INSERT INTO channel_members (channel_id, user_id)
 		VALUES ($1, $2)
@@ -129,13 +130,21 @@ func (r *channelsRepo) AddUserToChannel(ctx context.Context, channelID, userID u
 		_, err = r.db.ExecContext(ctx, query, channelID, userID)
 	}
 
-	return err
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	userID, err = uuid.Parse(userID.String())
+
+	return userID, nil
 }
 
-func (r *channelsRepo) SaveGroupChannel(ctx context.Context, ownerUserID uuid.UUID, name string, userIDs []uuid.UUID) (*Channel, error) {
+func (r *channelsRepo) SaveGroupChannel(ctx context.Context, ownerUserID uuid.UUID, name string, channelMemberIDs []uuid.UUID) (*Channel, []uuid.UUID, error) {
+	log.Printf("saving group channel %s with owner %s and users %v", name, ownerUserID, channelMemberIDs)
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+		return nil, nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
@@ -147,27 +156,35 @@ func (r *channelsRepo) SaveGroupChannel(ctx context.Context, ownerUserID uuid.UU
 
 	savedChannel, err := r.SaveChannel(ctx, newChannel, tx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to save channel: %w", err)
+		return nil, nil, fmt.Errorf("failed to save channel: %w", err)
 	}
 
 	channelID, err := uuid.Parse(savedChannel.ID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid channel ID: %w", err)
+		return nil, nil, fmt.Errorf("invalid channel ID: %w", err)
 	}
 
-	if err := r.AddUserToChannel(ctx, channelID, ownerUserID, tx); err != nil {
-		return nil, fmt.Errorf("failed to add owner to channel: %w", err)
+	savedOwnerID, err := r.AddUserToChannel(ctx, channelID, ownerUserID, tx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to add owner to channel: %w", err)
 	}
 
-	for _, userID := range userIDs {
-		if err := r.AddUserToChannel(ctx, channelID, userID, tx); err != nil {
-			return nil, fmt.Errorf("failed to add user to channel: %w", err)
+	memberUserIDs := []uuid.UUID{savedOwnerID}
+
+	for _, userID := range channelMemberIDs {
+		log.Printf("adding user %s to channel %s", userID, channelID)
+		savedUserID, err := r.AddUserToChannel(ctx, channelID, userID, tx)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to add user to channel: %w", err)
 		}
+		memberUserIDs = append(memberUserIDs, savedUserID)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+		return nil, nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	return savedChannel, nil
+	log.Printf("channel members: %v", memberUserIDs)
+
+	return savedChannel, memberUserIDs, nil
 }

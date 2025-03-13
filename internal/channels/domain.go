@@ -38,6 +38,15 @@ type GetChannelResponse struct {
 }
 
 type CreateGroupChannelRequest struct {
-	Name    string   `json:"name" binding:"required"`
-	UserIDs []string `json:"user_ids" binding:"required"`
+	Name             string     `json:"name" binding:"required"`
+	ChannelMemberIDs uuid.UUIDs `json:"channel_member_ids" binding:"required"`
+}
+
+type CreateGroupChannelResponse struct {
+	ID             string      `json:"id"`
+	Name           string      `json:"name"`
+	OwnerID        uuid.UUID   `json:"owner_id"`
+	ChannelType    ChannelType `json:"channel_type"`
+	ChannelMembers uuid.UUIDs  `json:"channel_members"`
+	CreatedAt      time.Time   `json:"created_at"`
 }
