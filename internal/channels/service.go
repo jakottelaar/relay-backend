@@ -37,8 +37,8 @@ func (s *channelsService) GetDMChannel(ctx context.Context, userId, targetUserID
 	return channel, nil
 }
 
-func (s *channelsService) CreateGroupChannel(ctx context.Context, userId uuid.UUID, name string, userIDs []uuid.UUID) (*Channel, error) {
-	savedChannel, err := s.channelsRepo.SaveGroupChannel(ctx, userId, name, userIDs)
+func (s *channelsService) CreateGroupChannel(ctx context.Context, ownerUserID uuid.UUID, name string, userIDs []uuid.UUID) (*Channel, error) {
+	savedChannel, err := s.channelsRepo.SaveGroupChannel(ctx, ownerUserID, name, userIDs)
 	if err != nil {
 		return nil, fmt.Errorf("error saving group channel: %w", err)
 	}

@@ -61,7 +61,7 @@ func (h *ChannelsHandler) CreateGroupChannel(c *gin.Context) {
 		return
 	}
 
-	userId, err := uuid.Parse(currentUserId.(string))
+	ownerUserID, err := uuid.Parse(currentUserId.(string))
 	if err != nil {
 		log.Printf("channels: failed to parse user_id: %v", err)
 		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
@@ -85,7 +85,7 @@ func (h *ChannelsHandler) CreateGroupChannel(c *gin.Context) {
 		userIds = append(userIds, userId)
 	}
 
-	channel, err := h.service.CreateGroupChannel(c.Request.Context(), userId, req.Name, userIds)
+	channel, err := h.service.CreateGroupChannel(c.Request.Context(), ownerUserID, req.Name, userIds)
 	if err != nil {
 		_ = c.Error(err)
 		return

@@ -14,7 +14,7 @@ type ChannelsRepo interface {
 	FindDMChannelByUserIDs(ctx context.Context, userID, targetUserID uuid.UUID) (*Channel, error)
 	SaveDMChannel(ctx context.Context, userId, targetUserID uuid.UUID) (*Channel, error)
 	AddUserToChannel(ctx context.Context, channelID, userID uuid.UUID, tx *sql.Tx) error
-	SaveGroupChannel(ctx context.Context, userId uuid.UUID, name string, userIDs []uuid.UUID) (*Channel, error)
+	SaveGroupChannel(ctx context.Context, ownerUserID uuid.UUID, name string, userIDs []uuid.UUID) (*Channel, error)
 }
 
 type channelsRepo struct {
@@ -132,7 +132,7 @@ func (r *channelsRepo) AddUserToChannel(ctx context.Context, channelID, userID u
 	return err
 }
 
-func (r *channelsRepo) SaveGroupChannel(ctx context.Context, userId uuid.UUID, name string, userIDs []uuid.UUID) (*Channel, error) {
+func (r *channelsRepo) SaveGroupChannel(ctx context.Context, ownerUserID uuid.UUID, name string, userIDs []uuid.UUID) (*Channel, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
@@ -141,7 +141,7 @@ func (r *channelsRepo) SaveGroupChannel(ctx context.Context, userId uuid.UUID, n
 
 	newChannel := &Channel{
 		Name:        name,
-		OwnerID:     userId,
+		OwnerID:     ownerUserID,
 		ChannelType: ChannelTypeGroup,
 	}
 
@@ -153,6 +153,10 @@ func (r *channelsRepo) SaveGroupChannel(ctx context.Context, userId uuid.UUID, n
 	channelID, err := uuid.Parse(savedChannel.ID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid channel ID: %w", err)
+	}
+
+	if err := r.AddUserToChannel(ctx, channelID, ownerUserID, tx); err != nil {
+		return nil, fmt.Errorf("failed to add owner to channel: %w", err)
 	}
 
 	for _, userID := range userIDs {
