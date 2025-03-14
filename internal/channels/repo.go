@@ -81,7 +81,11 @@ func (r *channelsRepo) SaveDMChannel(ctx context.Context, userId, targetUserID u
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			log.Printf("failed to rollback transaction: %v", err)
+		}
+	}()
 
 	dmName := fmt.Sprintf("dm_%s_%s", userId.String(), targetUserID.String())
 
@@ -123,20 +127,15 @@ func (r *channelsRepo) AddUserToChannel(ctx context.Context, channelID, userID u
 	`
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-
 	var err error
 	if tx != nil {
 		_, err = tx.ExecContext(ctx, query, channelID, userID)
 	} else {
 		_, err = r.db.ExecContext(ctx, query, channelID, userID)
 	}
-
 	if err != nil {
 		return uuid.Nil, err
 	}
-
-	userID, err = uuid.Parse(userID.String())
-
 	return userID, nil
 }
 
@@ -147,7 +146,11 @@ func (r *channelsRepo) SaveGroupChannel(ctx context.Context, ownerUserID uuid.UU
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			log.Printf("failed to rollback transaction: %v", err)
+		}
+	}()
 
 	newChannel := &Channel{
 		Name:        name,
