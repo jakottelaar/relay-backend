@@ -14,7 +14,7 @@ import (
 	"github.com/jakottelaar/relay-backend/internal"
 	"github.com/jakottelaar/relay-backend/internal/channels"
 	"github.com/jakottelaar/relay-backend/internal/relationships"
-	"github.com/jakottelaar/relay-backend/internal/users"
+	"github.com/jakottelaar/relay-backend/internal/supabase"
 )
 
 type App struct {
@@ -61,24 +61,10 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config) {
 
 	r.GET("/health", handleHealth(db))
 
-	userRepo := users.NewUserRepo(db)
-	userService := users.NewUserService(userRepo, cfg)
-	userHandler := users.NewUserHandler(userService, cfg)
-
-	auth := r.Group("/api/v1/auth")
-	{
-		auth.POST("/register", userHandler.RegisterUser)
-		auth.POST("/login", userHandler.Login)
-	}
-
-	users := r.Group("/api/v1/users")
-	users.Use(internal.JWTAuthMiddleware(&cfg))
-	{
-		users.GET("/me", userHandler.GetProfile)
-	}
+	supabaseClient := supabase.NewSupabaseClient(cfg.SupabaseUrl, cfg.SupabaseApiKey)
 
 	relationShipsRepo := relationships.NewRelationshipsRepo(db)
-	relationShipsService := relationships.NewRelationshipsService(relationShipsRepo, userRepo)
+	relationShipsService := relationships.NewRelationshipsService(relationShipsRepo, supabaseClient)
 	relationshipsHandler := relationships.NewRelationshipsHandler(relationShipsService)
 
 	relationShips := r.Group("/api/v1/relationships")

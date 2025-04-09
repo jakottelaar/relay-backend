@@ -16,7 +16,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jakottelaar/relay-backend/config"
 	"github.com/jakottelaar/relay-backend/internal/infra"
-	"github.com/jakottelaar/relay-backend/internal/users"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"

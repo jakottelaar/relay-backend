@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jakottelaar/relay-backend/internal"
-	"github.com/jakottelaar/relay-backend/internal/users"
+	"github.com/jakottelaar/relay-backend/internal/supabase"
 )
 
 type RelationshipsService interface {
@@ -19,18 +19,18 @@ type RelationshipsService interface {
 
 type relationshipsService struct {
 	relationshipsRepo RelationshipsRepo
-	usersRepo         users.UserRepo
+	supabaseClient    supabase.SupabaseClient
 }
 
-func NewRelationshipsService(relationshipsRepo RelationshipsRepo, usersRepo users.UserRepo) RelationshipsService {
+func NewRelationshipsService(relationshipsRepo RelationshipsRepo, supabaseClient supabase.SupabaseClient) RelationshipsService {
 	return &relationshipsService{
 		relationshipsRepo: relationshipsRepo,
-		usersRepo:         usersRepo,
+		supabaseClient:    supabaseClient,
 	}
 }
 
 func (s *relationshipsService) CreateRelationship(ctx context.Context, username string, current_user_id uuid.UUID) (*Relationship, error) {
-	targetUser, err := s.usersRepo.FindUserByUsername(ctx, username)
+	targetUser, err := s.supabaseClient.GetUserByUsername(ctx, username)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (s *relationshipsService) GetAllRelationships(ctx context.Context, current_
 
 func (s *relationshipsService) AcceptFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (*Relationship, error) {
 	// Fetch target user to ensure they exist
-	targetUser, err := s.usersRepo.FindUserByID(ctx, other_user_id.String())
+	targetUser, err := s.supabaseClient.GetUserByID(ctx, other_user_id)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (s *relationshipsService) AcceptFriendRequest(ctx context.Context, current_
 
 func (s *relationshipsService) CancelOrDeclineFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (string, error) {
 	// Fetch target user to ensure they exist
-	targetUser, err := s.usersRepo.FindUserByID(ctx, other_user_id.String())
+	targetUser, err := s.supabaseClient.GetUserByID(ctx, other_user_id)
 	if err != nil {
 		return "", err
 	}
@@ -211,7 +211,7 @@ func (s *relationshipsService) CancelOrDeclineFriendRequest(ctx context.Context,
 }
 
 func (s *relationshipsService) RemoveFriend(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) error {
-	targetUser, err := s.usersRepo.FindUserByID(ctx, other_user_id.String())
+	targetUser, err := s.supabaseClient.GetUserByID(ctx, other_user_id)
 	if err != nil {
 		return err
 	}

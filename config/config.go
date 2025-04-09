@@ -14,6 +14,8 @@ type Config struct {
 	DSN                 string
 	JwtSecret           string
 	JwtExpirationSecond int
+	SupabaseUrl         string
+	SupabaseApiKey      string
 }
 
 func New() (*Config, error) {
@@ -42,6 +44,15 @@ func New() (*Config, error) {
 	}
 
 	cfg.JwtExpirationSecond = getEnvAsInt("JWT_EXPIRATION_SECOND", 3600)
+	cfg.SupabaseUrl = getEnv("SUPABASE_URL", "")
+	if cfg.SupabaseUrl == "" {
+		return nil, fmt.Errorf("SUPABASE_URL is required")
+	}
+
+	cfg.SupabaseApiKey = getEnv("SUPABASE_API_KEY", "")
+	if cfg.SupabaseApiKey == "" {
+		return nil, fmt.Errorf("SUPABASE_API_KEY is required")
+	}
 
 	return &cfg, nil
 }
