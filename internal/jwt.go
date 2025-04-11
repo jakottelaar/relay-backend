@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -18,7 +17,7 @@ var (
 )
 
 type JWTClaims struct {
-	UserId string
+	UserId string `json:"sub"`
 	jwt.RegisteredClaims
 }
 
@@ -49,22 +48,6 @@ func Authenticate(authPayload *AuthPayload, jwtSecret string) (*AuthResponse, er
 	}, nil
 }
 
-func GenerateJWT(userId string, jwtSecret string, jwtExpirationSecond int) (string, error) {
-	expiresAt := time.Now().Add(time.Duration(jwtExpirationSecond) * time.Second)
-	jwtClaims := &JWTClaims{
-		UserId: userId,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expiresAt),
-		},
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtClaims)
-	accessToken, err := token.SignedString([]byte(jwtSecret))
-	if err != nil {
-		return "", err
-	}
-	return accessToken, nil
-}
-
 func parseToken(accessToken string, jwtSecret string) (*jwt.Token, error) {
 	return jwt.ParseWithClaims(accessToken, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -85,7 +68,7 @@ func JWTAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 
 		authResult, err := Authenticate(&AuthPayload{
 			AccessToken: accessToken,
-		}, cfg.JwtSecret)
+		}, cfg.SupabaseJwtSecret)
 
 		if err != nil {
 			c.AbortWithStatus(http.StatusUnauthorized)

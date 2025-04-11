@@ -9,13 +9,12 @@ import (
 )
 
 type Config struct {
-	Environment         string
-	Port                int
-	DSN                 string
-	JwtSecret           string
-	JwtExpirationSecond int
-	SupabaseUrl         string
-	SupabaseApiKey      string
+	Environment       string
+	Port              int
+	DSN               string
+	SupabaseJwtSecret string
+	SupabaseUrl       string
+	SupabaseApiKey    string
 }
 
 func New() (*Config, error) {
@@ -38,12 +37,11 @@ func New() (*Config, error) {
 		return nil, fmt.Errorf("DSN is required")
 	}
 
-	cfg.JwtSecret = getEnv("JWT_SECRET", "")
-	if cfg.JwtSecret == "" {
-		return nil, fmt.Errorf("JWT_SECRET is required")
+	cfg.SupabaseJwtSecret = getEnv("SUPABASE_JWT_SECRET", "")
+	if cfg.SupabaseJwtSecret == "" {
+		return nil, fmt.Errorf("SUPABASE_JWT_SECRET is required")
 	}
 
-	cfg.JwtExpirationSecond = getEnvAsInt("JWT_EXPIRATION_SECOND", 3600)
 	cfg.SupabaseUrl = getEnv("SUPABASE_URL", "")
 	if cfg.SupabaseUrl == "" {
 		return nil, fmt.Errorf("SUPABASE_URL is required")

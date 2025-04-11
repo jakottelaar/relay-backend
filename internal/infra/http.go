@@ -59,7 +59,7 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config) {
 
 	r.Use(internal.ErrorHandler())
 
-	r.GET("/health", handleHealth(db))
+	r.GET("/health", internal.JWTAuthMiddleware(&cfg), handleHealth(db))
 
 	supabaseClient := supabase.NewSupabaseClient(cfg.SupabaseUrl, cfg.SupabaseApiKey)
 
