@@ -37,7 +37,7 @@ func NewApp(ctx context.Context, cfg *config.Config, deps *AppDependencies) (*Ap
 		return nil, fmt.Errorf("initialize database: %w", err)
 	}
 
-	if deps == nil {
+	if deps == nil && cfg.Environment != "test" {
 		deps = &AppDependencies{
 			AuthService: &auth.SupabaseAuthService{
 				JwtSecret: cfg.SupabaseJwtSecret,
