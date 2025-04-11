@@ -32,10 +32,6 @@ func NewRelationshipsService(relationshipsRepo RelationshipsRepo, supabaseClient
 func (s *relationshipsService) CreateRelationship(ctx context.Context, username string, current_user_id uuid.UUID) (*Relationship, error) {
 	targetUser, err := s.supabaseClient.GetUserByUsername(ctx, username)
 	if err != nil {
-		return nil, err
-	}
-
-	if targetUser == nil {
 		return nil, internal.NewNotFoundError("User not found")
 	}
 
@@ -108,9 +104,6 @@ func (s *relationshipsService) AcceptFriendRequest(ctx context.Context, current_
 	// Fetch target user to ensure they exist
 	targetUser, err := s.supabaseClient.GetUserByID(ctx, other_user_id)
 	if err != nil {
-		return nil, err
-	}
-	if targetUser == nil {
 		return nil, internal.NewNotFoundError("User not found")
 	}
 
@@ -161,9 +154,6 @@ func (s *relationshipsService) CancelOrDeclineFriendRequest(ctx context.Context,
 	// Fetch target user to ensure they exist
 	targetUser, err := s.supabaseClient.GetUserByID(ctx, other_user_id)
 	if err != nil {
-		return "", err
-	}
-	if targetUser == nil {
 		return "", internal.NewNotFoundError("User not found")
 	}
 
@@ -211,11 +201,8 @@ func (s *relationshipsService) CancelOrDeclineFriendRequest(ctx context.Context,
 }
 
 func (s *relationshipsService) RemoveFriend(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) error {
-	targetUser, err := s.supabaseClient.GetUserByID(ctx, other_user_id)
+	_, err := s.supabaseClient.GetUserByID(ctx, other_user_id)
 	if err != nil {
-		return err
-	}
-	if targetUser == nil {
 		return internal.NewNotFoundError("User not found")
 	}
 

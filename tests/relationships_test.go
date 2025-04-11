@@ -5,46 +5,32 @@ import (
 	"testing"
 
 	"github.com/jakottelaar/relay-backend/internal/infra"
-	"github.com/jakottelaar/relay-backend/internal/users"
 	"github.com/stretchr/testify/assert"
 )
 
-func sendFriendRequest(t *testing.T, app *infra.App, token, username string, wantStatus int) {
+func sendFriendRequest(t *testing.T, app *infra.App, userID, username string, wantStatus int) {
 	w := performRequest(t, app, http.MethodPost, "/api/v1/relationships/friend-requests", map[string]interface{}{
 		"username": username,
-	}, map[string]string{
-		"Authorization": "Bearer " + token,
-	})
+	}, userID)
 	assert.Equal(t, wantStatus, w.Code)
 }
 
-func acceptFriendRequest(t *testing.T, app *infra.App, token, otherUserID string, wantStatus int) {
-	w := performRequest(t, app, http.MethodPatch, "/api/v1/relationships/users/"+otherUserID+"/friend-requests", nil, map[string]string{
-		"Authorization": "Bearer " + token,
-	})
+func acceptFriendRequest(t *testing.T, app *infra.App, userID, otherUserID string, wantStatus int) {
+	w := performRequest(t, app, http.MethodPatch, "/api/v1/relationships/users/"+otherUserID+"/friend-requests", nil, userID)
 	assert.Equal(t, wantStatus, w.Code)
 }
 
 func TestCreateFriendRequest(t *testing.T) {
-	app, cleanup := setupTestApp(t)
-	defer cleanup()
+	testSetup := SetupTestApp(t)
+	defer testSetup.Cleanup()
 
-	user1 := createTestUser(t, app, users.RegisterRequest{
-		Username: "test-username",
-		Email:    "test-user@mail.com",
-		Password: "test-password",
-	})
-
-	user2 := createTestUser(t, app, users.RegisterRequest{
-		Username: "test-username2",
-		Email:    "test-user2@mail.com",
-		Password: "test-password",
-	})
+	user1 := testSetup.CreateMockUser(t, "test-username", "test-user@mail.com")
+	user2 := testSetup.CreateMockUser(t, "test-username2", "test-user2@mail.com")
 
 	tests := []struct {
 		name       string
 		payload    map[string]interface{}
-		token      string
+		userID     string
 		wantStatus int
 	}{
 		{
@@ -52,7 +38,7 @@ func TestCreateFriendRequest(t *testing.T) {
 			payload: map[string]interface{}{
 				"username": "test-username2",
 			},
-			token:      user1.AccessToken,
+			userID:     user1.ID.String(),
 			wantStatus: http.StatusCreated,
 		},
 		{
@@ -60,15 +46,15 @@ func TestCreateFriendRequest(t *testing.T) {
 			payload: map[string]interface{}{
 				"username": "test-username",
 			},
-			token:      user1.AccessToken,
+			userID:     user1.ID.String(),
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name: "user not found",
 			payload: map[string]interface{}{
-				"username": "test-username3",
+				"username": "non-existent-user",
 			},
-			token:      user1.AccessToken,
+			userID:     user1.ID.String(),
 			wantStatus: http.StatusNotFound,
 		},
 		{
@@ -76,7 +62,7 @@ func TestCreateFriendRequest(t *testing.T) {
 			payload: map[string]interface{}{
 				"username": "test-username2",
 			},
-			token:      user1.AccessToken,
+			userID:     user1.ID.String(),
 			wantStatus: http.StatusConflict,
 		},
 		{
@@ -84,7 +70,7 @@ func TestCreateFriendRequest(t *testing.T) {
 			payload: map[string]interface{}{
 				"username": "test-username",
 			},
-			token:      user2.AccessToken,
+			userID:     user2.ID.String(),
 			wantStatus: http.StatusCreated,
 		},
 		{
@@ -92,13 +78,13 @@ func TestCreateFriendRequest(t *testing.T) {
 			payload: map[string]interface{}{
 				"username": "test-username2",
 			},
-			token:      user1.AccessToken,
+			userID:     user1.ID.String(),
 			wantStatus: http.StatusConflict,
 		},
 		{
 			name:       "username not provided",
 			payload:    map[string]interface{}{},
-			token:      user1.AccessToken,
+			userID:     user1.ID.String(),
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -106,18 +92,22 @@ func TestCreateFriendRequest(t *testing.T) {
 			payload: map[string]interface{}{
 				"username": "a",
 			},
-			token:      user1.AccessToken,
+			userID:     user1.ID.String(),
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			headers := map[string]string{
-				"Authorization": "Bearer " + tt.token,
-			}
+			w := performRequest(
+				t,
+				testSetup.App,
+				http.MethodPost,
+				"/api/v1/relationships/friend-requests",
+				tt.payload,
+				tt.userID,
+			)
 
-			w := performRequest(t, app, http.MethodPost, "/api/v1/relationships/friend-requests", tt.payload, headers)
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if w.Code != tt.wantStatus {
 				t.Errorf("Expected status %d but got %d: %s", tt.wantStatus, w.Code, w.Body.String())
@@ -127,46 +117,37 @@ func TestCreateFriendRequest(t *testing.T) {
 }
 
 func TestAcceptFriendRequest(t *testing.T) {
-	app, cleanup := setupTestApp(t)
-	defer cleanup()
+	testSetup := SetupTestApp(t)
+	defer testSetup.Cleanup()
 
 	// Create users
-	user1 := createTestUser(t, app, users.RegisterRequest{
-		Username: "user1",
-		Email:    "user1@mail.com",
-		Password: "password",
-	})
-
-	user2 := createTestUser(t, app, users.RegisterRequest{
-		Username: "user2",
-		Email:    "user2@mail.com",
-		Password: "password",
-	})
+	user1 := testSetup.CreateMockUser(t, "test-username", "test-user@mail.com")
+	user2 := testSetup.CreateMockUser(t, "test-username2", "test-user2@mail.com")
 
 	// User 1 sends friend request to User 2
-	sendFriendRequest(t, app, user1.AccessToken, "user2", http.StatusCreated)
+	sendFriendRequest(t, testSetup.App, user1.ID.String(), user2.Username, http.StatusCreated)
 
 	tests := []struct {
 		name        string
-		token       string
+		userID      string
 		OtherUserID string
 		wantStatus  int
 	}{
 		{
 			name:        "valid accept friend request",
-			token:       user2.AccessToken,
+			userID:      user2.ID.String(),
 			OtherUserID: user1.ID.String(),
 			wantStatus:  http.StatusOK,
 		},
 		{
 			name:        "accept friend request that does not exist",
-			token:       user2.AccessToken,
+			userID:      user2.ID.String(),
 			OtherUserID: "00000000-0000-0000-0000-000000000000",
 			wantStatus:  http.StatusNotFound,
 		},
 		{
 			name:        "error: accept own friend request",
-			token:       user2.AccessToken,
+			userID:      user2.ID.String(),
 			OtherUserID: user2.ID.String(),
 			wantStatus:  http.StatusBadRequest,
 		},
@@ -174,11 +155,15 @@ func TestAcceptFriendRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			headers := map[string]string{
-				"Authorization": "Bearer " + tt.token,
-			}
 
-			w := performRequest(t, app, http.MethodPatch, "/api/v1/relationships/users/"+tt.OtherUserID+"/friend-requests", nil, headers)
+			w := performRequest(
+				t,
+				testSetup.App,
+				http.MethodPatch,
+				"/api/v1/relationships/users/"+tt.OtherUserID+"/friend-requests",
+				nil,
+				tt.userID,
+			)
 			assert.Equal(t, tt.wantStatus, w.Code)
 
 			if w.Code != tt.wantStatus {
@@ -189,46 +174,37 @@ func TestAcceptFriendRequest(t *testing.T) {
 }
 
 func TestCancelOrDeclineFriendRequest(t *testing.T) {
-	app, cleanup := setupTestApp(t)
-	defer cleanup()
+	testSetup := SetupTestApp(t)
+	defer testSetup.Cleanup()
 
 	// Create users
-	user1 := createTestUser(t, app, users.RegisterRequest{
-		Username: "user1",
-		Email:    "user1@mail.com",
-		Password: "password",
-	})
-
-	user2 := createTestUser(t, app, users.RegisterRequest{
-		Username: "user2",
-		Email:    "user2@mail.com",
-		Password: "password",
-	})
+	user1 := testSetup.CreateMockUser(t, "test-username", "test-user@mail.com")
+	user2 := testSetup.CreateMockUser(t, "test-username2", "test-user2@mail.com")
 
 	// User 1 sends friend request to User 2
-	sendFriendRequest(t, app, user1.AccessToken, "user2", http.StatusCreated)
+	sendFriendRequest(t, testSetup.App, user1.ID.String(), user2.Username, http.StatusCreated)
 
 	tests := []struct {
 		name        string
-		token       string
+		userID      string
 		OtherUserID string
 		wantStatus  int
 	}{
 		{
 			name:        "valid cancel/decline friend request",
-			token:       user2.AccessToken,
+			userID:      user2.ID.String(),
 			OtherUserID: user1.ID.String(),
 			wantStatus:  http.StatusOK,
 		},
 		{
 			name:        "error: cancel/decline friend request that does not exist",
-			token:       user2.AccessToken,
+			userID:      user2.ID.String(),
 			OtherUserID: "00000000-0000-0000-0000-000000000000",
 			wantStatus:  http.StatusNotFound,
 		},
 		{
 			name:        "error: cancel/decline own friend request",
-			token:       user2.AccessToken,
+			userID:      user2.ID.String(),
 			OtherUserID: user2.ID.String(),
 			wantStatus:  http.StatusBadRequest,
 		},
@@ -236,11 +212,14 @@ func TestCancelOrDeclineFriendRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			headers := map[string]string{
-				"Authorization": "Bearer " + tt.token,
-			}
-
-			w := performRequest(t, app, http.MethodDelete, "/api/v1/relationships/users/"+tt.OtherUserID+"/friend-requests", nil, headers)
+			w := performRequest(
+				t,
+				testSetup.App,
+				http.MethodDelete,
+				"/api/v1/relationships/users/"+tt.OtherUserID+"/friend-requests",
+				nil,
+				tt.userID,
+			)
 			assert.Equal(t, tt.wantStatus, w.Code)
 
 			if w.Code != tt.wantStatus {
@@ -253,43 +232,34 @@ func TestCancelOrDeclineFriendRequest(t *testing.T) {
 }
 
 func TestRemoveFriend(t *testing.T) {
-	app, cleanup := setupTestApp(t)
-	defer cleanup()
+	testSetup := SetupTestApp(t)
+	defer testSetup.Cleanup()
 
 	// Create users
-	user1 := createTestUser(t, app, users.RegisterRequest{
-		Username: "user1",
-		Email:    "user1@mail.com",
-		Password: "password",
-	})
-
-	user2 := createTestUser(t, app, users.RegisterRequest{
-		Username: "user2",
-		Email:    "user2@mail.com",
-		Password: "password",
-	})
+	user1 := testSetup.CreateMockUser(t, "test-username", "test-user@mail.com")
+	user2 := testSetup.CreateMockUser(t, "test-username2", "test-user2@mail.com")
 
 	// User 1 sends friend request to User 2
-	sendFriendRequest(t, app, user1.AccessToken, "user2", http.StatusCreated)
+	sendFriendRequest(t, testSetup.App, user1.ID.String(), user2.Username, http.StatusCreated)
 
 	// User 2 accepts friend request
-	acceptFriendRequest(t, app, user2.AccessToken, user1.ID.String(), http.StatusOK)
+	acceptFriendRequest(t, testSetup.App, user2.ID.String(), user1.ID.String(), http.StatusOK)
 
 	tests := []struct {
 		name        string
-		token       string
+		userID      string
 		OtherUserID string
 		wantStatus  int
 	}{
 		{
 			name:        "valid remove friend",
-			token:       user1.AccessToken,
+			userID:      user1.ID.String(),
 			OtherUserID: user2.ID.String(),
 			wantStatus:  http.StatusOK,
 		},
 		{
 			name:        "error: remove friend that does not exist",
-			token:       user1.AccessToken,
+			userID:      user1.ID.String(),
 			OtherUserID: "00000000-0000-0000-0000-000000000000",
 			wantStatus:  http.StatusNotFound,
 		},
@@ -297,11 +267,8 @@ func TestRemoveFriend(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			headers := map[string]string{
-				"Authorization": "Bearer " + tt.token,
-			}
 
-			w := performRequest(t, app, http.MethodDelete, "/api/v1/relationships/users/"+tt.OtherUserID+"/friends", nil, headers)
+			w := performRequest(t, testSetup.App, http.MethodDelete, "/api/v1/relationships/users/"+tt.OtherUserID+"/friends", nil, tt.userID)
 			assert.Equal(t, tt.wantStatus, w.Code)
 
 			if w.Code != tt.wantStatus {

@@ -12,21 +12,41 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jakottelaar/relay-backend/config"
 	"github.com/jakottelaar/relay-backend/internal"
+	"github.com/jakottelaar/relay-backend/internal/auth"
 	"github.com/jakottelaar/relay-backend/internal/channels"
 	"github.com/jakottelaar/relay-backend/internal/relationships"
 	"github.com/jakottelaar/relay-backend/internal/supabase"
 )
 
+type AppDependencies struct {
+	AuthService            auth.AuthService
+	AuthMiddlewareProvider auth.AuthMiddlewareProvider
+	SupabaseClient         supabase.SupabaseClient
+}
+
 type App struct {
 	HttpServer *http.Server
 	config     *config.Config
 	db         *sql.DB
+	deps       *AppDependencies
 }
 
-func NewApp(ctx context.Context, config *config.Config) (*App, error) {
-	db, err := initializeDB(config.DSN)
+func NewApp(ctx context.Context, cfg *config.Config, deps *AppDependencies) (*App, error) {
+	db, err := initializeDB(cfg.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("initialize database: %w", err)
+	}
+
+	if deps == nil {
+		deps = &AppDependencies{
+			AuthService: &auth.SupabaseAuthService{
+				JwtSecret: cfg.SupabaseJwtSecret,
+			},
+			AuthMiddlewareProvider: &auth.SupabaseAuthMiddlewareProvider{
+				Config: cfg,
+			},
+			SupabaseClient: supabase.NewSupabaseClient(cfg.SupabaseUrl, cfg.SupabaseApiKey),
+		}
 	}
 
 	log.Println("database connection established")
@@ -36,12 +56,12 @@ func NewApp(ctx context.Context, config *config.Config) (*App, error) {
 		gin.Recovery(),
 	)
 
-	registerRoutes(router, db, *config)
+	registerRoutes(router, db, *cfg, deps)
 
 	log.Println("routes registered")
 
 	srv := &http.Server{
-		Addr:         ":" + strconv.Itoa(config.Port),
+		Addr:         ":" + strconv.Itoa(cfg.Port),
 		Handler:      router,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
@@ -50,25 +70,27 @@ func NewApp(ctx context.Context, config *config.Config) (*App, error) {
 
 	return &App{
 		HttpServer: srv,
-		config:     config,
+		config:     cfg,
 		db:         db,
 	}, nil
 }
 
-func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config) {
+func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDependencies) {
+
+	authMiddleware := deps.AuthMiddlewareProvider.AuthMiddleware()
 
 	r.Use(internal.ErrorHandler())
 
-	r.GET("/health", internal.JWTAuthMiddleware(&cfg), handleHealth(db))
+	r.GET("/health", authMiddleware, handleHealth(db))
 
-	supabaseClient := supabase.NewSupabaseClient(cfg.SupabaseUrl, cfg.SupabaseApiKey)
+	supabaseClient := deps.SupabaseClient
 
 	relationShipsRepo := relationships.NewRelationshipsRepo(db)
 	relationShipsService := relationships.NewRelationshipsService(relationShipsRepo, supabaseClient)
 	relationshipsHandler := relationships.NewRelationshipsHandler(relationShipsService)
 
 	relationShips := r.Group("/api/v1/relationships")
-	relationShips.Use(internal.JWTAuthMiddleware(&cfg))
+	relationShips.Use(authMiddleware)
 	{
 		relationShips.POST("/friend-requests", relationshipsHandler.CreateRelationship)
 		relationShips.GET("", relationshipsHandler.GetAllRelationships)
@@ -82,13 +104,13 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config) {
 	channelsHandler := channels.NewChannelsHandler(channelsService)
 
 	dmChannels := r.Group("/api/v1/users")
-	dmChannels.Use(internal.JWTAuthMiddleware(&cfg))
+	dmChannels.Use(authMiddleware)
 	{
 		dmChannels.GET("/:target_user_id/dm", channelsHandler.GetDMChannel)
 	}
 
 	channels := r.Group("/api/v1/channels")
-	channels.Use(internal.JWTAuthMiddleware(&cfg))
+	channels.Use(authMiddleware)
 	{
 		channels.POST("/groups", channelsHandler.CreateGroupChannel)
 		channels.GET("", channelsHandler.GetAllChannels)

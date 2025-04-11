@@ -27,7 +27,7 @@ func main() {
 	defer cancel()
 
 	// Initialize application
-	app, err := infra.NewApp(ctx, cfg)
+	app, err := infra.NewApp(ctx, cfg, nil)
 	if err != nil {
 		slog.Error("failed to initialize application", "error", err)
 		os.Exit(1)

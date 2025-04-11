@@ -1,4 +1,4 @@
-package internal
+package auth
 
 import (
 	"errors"
@@ -10,6 +10,15 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jakottelaar/relay-backend/config"
 )
+
+type AuthService interface {
+	Authenticate(accessToken string) (*AuthResponse, error)
+	ExtractTokenFromHeader(header string) string
+}
+
+type AuthMiddlewareProvider interface {
+	AuthMiddleware() gin.HandlerFunc
+}
 
 var (
 	ErrInvalidToken = errors.New("invalid token")
@@ -30,9 +39,12 @@ type AuthResponse struct {
 	Expired bool
 }
 
-func Authenticate(authPayload *AuthPayload, jwtSecret string) (*AuthResponse, error) {
-	token, err := parseToken(authPayload.AccessToken, jwtSecret)
+type SupabaseAuthService struct {
+	JwtSecret string
+}
 
+func (s *SupabaseAuthService) Authenticate(accessToken string) (*AuthResponse, error) {
+	token, err := s.parseToken(accessToken)
 	if err != nil {
 		return nil, ErrInvalidToken
 	}
@@ -48,28 +60,45 @@ func Authenticate(authPayload *AuthPayload, jwtSecret string) (*AuthResponse, er
 	}, nil
 }
 
-func parseToken(accessToken string, jwtSecret string) (*jwt.Token, error) {
+func (s *SupabaseAuthService) ExtractTokenFromHeader(header string) string {
+	bearToken := header
+	strArr := strings.Split(bearToken, " ")
+	if len(strArr) == 2 {
+		return strArr[1]
+	}
+	return ""
+}
+
+func (s *SupabaseAuthService) parseToken(accessToken string) (*jwt.Token, error) {
 	return jwt.ParseWithClaims(accessToken, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(jwtSecret), nil
+		return []byte(s.JwtSecret), nil
 	})
 }
 
-func JWTAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
-	return func(c *gin.Context) {
+type SupabaseAuthMiddlewareProvider struct {
+	Config      *config.Config
+	AuthService AuthService
+}
 
-		accessToken := ExtractTokenFromHeader(c.Request)
+func (p *SupabaseAuthMiddlewareProvider) AuthMiddleware() gin.HandlerFunc {
+	// If no auth service is provided, create one with the config
+	if p.AuthService == nil {
+		p.AuthService = &SupabaseAuthService{
+			JwtSecret: p.Config.SupabaseJwtSecret,
+		}
+	}
+
+	return func(c *gin.Context) {
+		accessToken := p.AuthService.ExtractTokenFromHeader(c.Request.Header.Get("Authorization"))
 		if accessToken == "" {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
-		authResult, err := Authenticate(&AuthPayload{
-			AccessToken: accessToken,
-		}, cfg.SupabaseJwtSecret)
-
+		authResult, err := p.AuthService.Authenticate(accessToken)
 		if err != nil {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
@@ -83,16 +112,6 @@ func JWTAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		c.Set("user_id", authResult.UserId)
-
 		c.Next()
 	}
-}
-
-func ExtractTokenFromHeader(r *http.Request) string {
-	bearToken := r.Header.Get("Authorization")
-	strArr := strings.Split(bearToken, " ")
-	if len(strArr) == 2 {
-		return strArr[1]
-	}
-	return ""
 }
