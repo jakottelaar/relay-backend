@@ -72,6 +72,7 @@ func NewApp(ctx context.Context, cfg *config.Config, deps *AppDependencies) (*Ap
 		HttpServer: srv,
 		config:     cfg,
 		db:         db,
+		deps:       deps,
 	}, nil
 }
 

@@ -145,7 +145,6 @@ func startPostgresContainer(t *testing.T, ctx context.Context) (testcontainers.C
 func (ts *TestSetup) CreateMockUser(t *testing.T, username, email string) *TestUser {
 	id := uuid.New()
 
-	// Create mock profile
 	profile := &supabase.Profile{
 		ID:        id,
 		Username:  username,

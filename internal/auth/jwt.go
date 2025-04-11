@@ -30,10 +30,6 @@ type JWTClaims struct {
 	jwt.RegisteredClaims
 }
 
-type AuthPayload struct {
-	AccessToken string
-}
-
 type AuthResponse struct {
 	UserId  string
 	Expired bool
