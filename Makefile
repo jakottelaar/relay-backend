@@ -12,3 +12,6 @@ lint:
 
 clean:
 	rm -rf bin/
+
+migrate-up:
+	migrate -path ./migrations -database "postgresql://postgres:postgres@localhost:6000/relay-db?sslmode=disable" up

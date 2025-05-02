@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/jakottelaar/relay-backend/config"
 	"github.com/jakottelaar/relay-backend/internal"
@@ -81,6 +82,13 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDepen
 	authMiddleware := deps.AuthMiddlewareProvider.AuthMiddleware()
 
 	r.Use(internal.ErrorHandler())
+
+	r.Use(cors.New(cors.Config{
+		AllowAllOrigins: true, // Allow all origins for development purposes
+		AllowHeaders:    []string{"Authorization", "Content-Type"},
+		AllowMethods:    []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+		MaxAge:          12 * time.Hour,
+	}))
 
 	r.GET("/health", authMiddleware, handleHealth(db))
 
