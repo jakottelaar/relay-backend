@@ -11,7 +11,7 @@ import (
 
 type RelationshipsService interface {
 	CreateRelationship(ctx context.Context, username string, current_user_id uuid.UUID) (*Relationship, error)
-	GetAllRelationships(ctx context.Context, current_user_id uuid.UUID) ([]*Relationship, error)
+	GetAllRelationships(ctx context.Context, current_user_id uuid.UUID) ([]*GetRelationshipResponse, error)
 	AcceptFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (*Relationship, error)
 	CancelOrDeclineFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (string, error)
 	RemoveFriend(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) error
@@ -91,13 +91,36 @@ func (s *relationshipsService) getOppositeStatus(status RelationshipStatus) Rela
 	}
 }
 
-func (s *relationshipsService) GetAllRelationships(ctx context.Context, current_user_id uuid.UUID) ([]*Relationship, error) {
+func (s *relationshipsService) GetAllRelationships(ctx context.Context, current_user_id uuid.UUID) ([]*GetRelationshipResponse, error) {
 	relationships, err := s.relationshipsRepo.FindAllRelationshipsByUserID(ctx, current_user_id)
 	if err != nil {
 		return nil, fmt.Errorf("could not get relationships: %w", err)
 	}
 
-	return relationships, nil
+	otherUserIDs := make([]uuid.UUID, len(relationships))
+	for i, rel := range relationships {
+		otherUserIDs[i] = rel.OtherUserID
+	}
+
+	profilesMap, err := s.supabaseClient.GetUsersByIDs(ctx, otherUserIDs)
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch user profiles: %w", err)
+	}
+
+	result := make([]*GetRelationshipResponse, len(relationships))
+	for i, rel := range relationships {
+		result[i] = &GetRelationshipResponse{
+			ID:                 rel.ID,
+			UserID:             rel.UserID,
+			OtherUserID:        rel.OtherUserID,
+			RelationshipStatus: string(rel.RelationshipStatus),
+			CreatedAt:          rel.CreatedAt,
+			UpdatedAt:          rel.UpdatedAt,
+			OtherUser:          profilesMap[rel.OtherUserID],
+		}
+	}
+
+	return result, nil
 }
 
 func (s *relationshipsService) AcceptFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (*Relationship, error) {

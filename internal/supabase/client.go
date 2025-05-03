@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -20,6 +22,7 @@ type Profile struct {
 type SupabaseClient interface {
 	GetUserByUsername(ctx context.Context, username string) (*Profile, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (*Profile, error)
+	GetUsersByIDs(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]*Profile, error)
 }
 
 type supabaseClient struct {
@@ -90,4 +93,67 @@ func (c *supabaseClient) GetUserByID(ctx context.Context, id uuid.UUID) (*Profil
 	}
 
 	return &profiles[0], nil
+}
+
+func (c *supabaseClient) GetUsersByIDs(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]*Profile, error) {
+	if len(userIDs) == 0 {
+		return make(map[uuid.UUID]*Profile), nil
+	}
+
+	// Convert UUIDs to strings and join them with commas
+	idStrings := make([]string, len(userIDs))
+	for i, id := range userIDs {
+		idStrings[i] = id.String()
+	}
+	idList := strings.Join(idStrings, ",")
+
+	req, err := http.NewRequest("GET",
+		fmt.Sprintf("%s/rest/v1/profiles?id=in.(%s)&select=id,username,email,avatar_url,updated_at",
+			c.Url, idList),
+		nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("apikey", c.ApiKey)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", c.ApiKey))
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check if the response was successful
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("got status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Read the body to debug the response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response body: %w", err)
+	}
+
+	// Create a new reader for the JSON decoder
+	profiles := []Profile{}
+	err = json.Unmarshal(body, &profiles)
+	if err != nil {
+		// If decoding as array fails, return with the error message and response body for debugging
+		return nil, fmt.Errorf("error decoding profiles (%s): %w", string(body), err)
+	}
+
+	// Convert slice to map keyed by user ID for easy lookup
+	profileMap := make(map[uuid.UUID]*Profile)
+	for i := range profiles {
+		// Parse the ID from string to UUID if needed
+		id, err := uuid.Parse(profiles[i].ID.String())
+		if err != nil {
+			return nil, fmt.Errorf("invalid UUID in profile: %w", err)
+		}
+		profileMap[id] = &profiles[i]
+	}
+
+	return profileMap, nil
 }

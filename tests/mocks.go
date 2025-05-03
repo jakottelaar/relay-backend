@@ -61,3 +61,11 @@ func (m *MockSupabaseClient) GetUserByID(ctx context.Context, id uuid.UUID) (*su
 	}
 	return args.Get(0).(*supabase.Profile), args.Error(1)
 }
+
+func (m *MockSupabaseClient) GetUsersByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*supabase.Profile, error) {
+	args := m.Called(ctx, ids)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[uuid.UUID]*supabase.Profile), args.Error(1)
+}

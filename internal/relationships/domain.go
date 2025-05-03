@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jakottelaar/relay-backend/internal/supabase"
 )
 
 type RelationshipStatus string
@@ -40,10 +41,11 @@ type CreateRelationshipResponse struct {
 }
 
 type GetRelationshipResponse struct {
-	ID                 uuid.UUID `json:"id"`
-	UserID             uuid.UUID `json:"user_id"`
-	OtherUserID        uuid.UUID `json:"other_user_id"`
-	RelationshipStatus string    `json:"relationship_status"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	ID                 uuid.UUID         `json:"id"`
+	UserID             uuid.UUID         `json:"user_id"`
+	OtherUserID        uuid.UUID         `json:"other_user_id"`
+	RelationshipStatus string            `json:"relationship_status"`
+	CreatedAt          time.Time         `json:"created_at"`
+	UpdatedAt          time.Time         `json:"updated_at"`
+	OtherUser          *supabase.Profile `json:"other_user,omitempty"`
 }

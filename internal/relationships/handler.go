@@ -81,19 +81,7 @@ func (h *RelationshipsHandler) GetAllRelationships(c *gin.Context) {
 		return
 	}
 
-	var relationshipsResponse []*GetRelationshipResponse
-	for _, relationship := range relationships {
-		relationshipsResponse = append(relationshipsResponse, &GetRelationshipResponse{
-			ID:                 relationship.ID,
-			UserID:             relationship.UserID,
-			OtherUserID:        relationship.OtherUserID,
-			RelationshipStatus: string(relationship.RelationshipStatus),
-			CreatedAt:          relationship.CreatedAt,
-			UpdatedAt:          relationship.UpdatedAt,
-		})
-	}
-
-	c.JSON(http.StatusOK, gin.H{"relationships": relationshipsResponse})
+	c.JSON(http.StatusOK, gin.H{"relationships": relationships})
 }
 
 func (h *RelationshipsHandler) AcceptFriendRequest(c *gin.Context) {
