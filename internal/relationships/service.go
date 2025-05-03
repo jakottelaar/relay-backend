@@ -13,7 +13,7 @@ type RelationshipsService interface {
 	CreateRelationship(ctx context.Context, username string, current_user_id uuid.UUID) (*Relationship, error)
 	GetAllRelationships(ctx context.Context, current_user_id uuid.UUID) ([]*GetRelationshipResponse, error)
 	AcceptFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (*Relationship, error)
-	CancelOrDeclineFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (string, error)
+	CancelOrRejectFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (string, error)
 	RemoveFriend(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) error
 }
 
@@ -173,7 +173,7 @@ func (s *relationshipsService) AcceptFriendRequest(ctx context.Context, current_
 	return updatedRelationship, nil
 }
 
-func (s *relationshipsService) CancelOrDeclineFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (string, error) {
+func (s *relationshipsService) CancelOrRejectFriendRequest(ctx context.Context, current_user_id uuid.UUID, other_user_id uuid.UUID) (string, error) {
 	// Fetch target user to ensure they exist
 	targetUser, err := s.supabaseClient.GetUserByID(ctx, other_user_id)
 	if err != nil {

@@ -115,7 +115,7 @@ func (h *RelationshipsHandler) AcceptFriendRequest(c *gin.Context) {
 	})
 }
 
-func (h *RelationshipsHandler) CancelOrDeclineFriendRequest(c *gin.Context) {
+func (h *RelationshipsHandler) CancelOrRejectFriendRequest(c *gin.Context) {
 	currentUserID, ok := c.Get("user_id")
 	if !ok {
 		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
@@ -135,7 +135,7 @@ func (h *RelationshipsHandler) CancelOrDeclineFriendRequest(c *gin.Context) {
 		return
 	}
 
-	message, err := h.service.CancelOrDeclineFriendRequest(c.Request.Context(), userID, targetUserID)
+	message, err := h.service.CancelOrRejectFriendRequest(c.Request.Context(), userID, targetUserID)
 	if err != nil {
 		_ = c.Error(err)
 		return
