@@ -17,6 +17,7 @@ import (
 	"github.com/jakottelaar/relay-backend/internal/channels"
 	"github.com/jakottelaar/relay-backend/internal/relationships"
 	"github.com/jakottelaar/relay-backend/internal/supabase"
+	"github.com/jakottelaar/relay-backend/internal/websocket"
 )
 
 type AppDependencies struct {
@@ -79,6 +80,11 @@ func NewApp(ctx context.Context, cfg *config.Config, deps *AppDependencies) (*Ap
 
 func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDependencies) {
 
+	wsManager := websocket.NewManager()
+	wsHandler := websocket.NewWebSocketHandler(wsManager, &cfg)
+
+	r.GET("/ws", wsHandler.HandleWebSocket)
+
 	authMiddleware := deps.AuthMiddlewareProvider.AuthMiddleware()
 
 	r.Use(internal.ErrorHandler())
@@ -95,7 +101,7 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDepen
 	supabaseClient := deps.SupabaseClient
 
 	relationShipsRepo := relationships.NewRelationshipsRepo(db)
-	relationShipsService := relationships.NewRelationshipsService(relationShipsRepo, supabaseClient)
+	relationShipsService := relationships.NewRelationshipsService(relationShipsRepo, supabaseClient, wsManager)
 	relationshipsHandler := relationships.NewRelationshipsHandler(relationShipsService)
 
 	relationShips := r.Group("/api/v1/relationships")

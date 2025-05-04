@@ -11,11 +11,11 @@ import (
 )
 
 type RelationshipsRepo interface {
-	SaveRelationship(ctx context.Context, current_user_id, target_user_id uuid.UUID) (*Relationship, error)
-	FindRelationshipByUserIDAndOtherUserID(ctx context.Context, userID, otherUserID uuid.UUID) (*Relationship, error)
-	UpdateRelationshipStatus(ctx context.Context, userID, otherUserID uuid.UUID, status RelationshipStatus) (*Relationship, error)
+	SaveRelationship(ctx context.Context, currentUserID, targetUserID uuid.UUID) (*Relationship, error)
+	FindRelationshipByUserIDAndTargetUserID(ctx context.Context, userID, TargetUserID uuid.UUID) (*Relationship, error)
+	UpdateRelationshipStatus(ctx context.Context, userID, TargetUserID uuid.UUID, status RelationshipStatus) (*Relationship, error)
 	FindAllRelationshipsByUserID(ctx context.Context, userID uuid.UUID) ([]*Relationship, error)
-	DeleteRelationship(ctx context.Context, userID, otherUserID uuid.UUID) error
+	DeleteRelationship(ctx context.Context, userID, TargetUserID uuid.UUID) error
 }
 
 type relationshipsRepo struct {
@@ -26,7 +26,7 @@ func NewRelationshipsRepo(db *sql.DB) RelationshipsRepo {
 	return &relationshipsRepo{db: db}
 }
 
-func (r *relationshipsRepo) SaveRelationship(ctx context.Context, current_user_id, target_user_id uuid.UUID) (*Relationship, error) {
+func (r *relationshipsRepo) SaveRelationship(ctx context.Context, currentUserID, targetUserID uuid.UUID) (*Relationship, error) {
 	// Start a transaction
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{
 		Isolation: sql.LevelReadCommitted,
@@ -62,13 +62,13 @@ func (r *relationshipsRepo) SaveRelationship(ctx context.Context, current_user_i
 
 	// Create the outgoing relationship
 	outgoingRelationship := &Relationship{
-		UserID:             current_user_id,
-		OtherUserID:        target_user_id,
+		UserID:             currentUserID,
+		OtherUserID:        targetUserID,
 		RelationshipStatus: RelationshipStatusOutgoing,
 	}
 
 	// Execute outgoing relationship insertion
-	err = tx.QueryRowContext(ctx, outgoingQuery, current_user_id, target_user_id).Scan(
+	err = tx.QueryRowContext(ctx, outgoingQuery, currentUserID, targetUserID).Scan(
 		&outgoingRelationship.ID,
 		&outgoingRelationship.CreatedAt,
 		&outgoingRelationship.UpdatedAt,
@@ -79,13 +79,13 @@ func (r *relationshipsRepo) SaveRelationship(ctx context.Context, current_user_i
 
 	// Create the incoming relationship
 	incomingRelationship := &Relationship{
-		UserID:             target_user_id,
-		OtherUserID:        current_user_id,
+		UserID:             targetUserID,
+		OtherUserID:        currentUserID,
 		RelationshipStatus: RelationshipStatusIncoming,
 	}
 
 	// Execute incoming relationship insertion
-	err = tx.QueryRowContext(ctx, incomingQuery, target_user_id, current_user_id).Scan(
+	err = tx.QueryRowContext(ctx, incomingQuery, targetUserID, currentUserID).Scan(
 		&incomingRelationship.ID,
 		&incomingRelationship.CreatedAt,
 		&incomingRelationship.UpdatedAt,
@@ -97,7 +97,7 @@ func (r *relationshipsRepo) SaveRelationship(ctx context.Context, current_user_i
 	return outgoingRelationship, nil
 }
 
-func (r *relationshipsRepo) FindRelationshipByUserIDAndOtherUserID(ctx context.Context, userID, otherUserID uuid.UUID) (*Relationship, error) {
+func (r *relationshipsRepo) FindRelationshipByUserIDAndTargetUserID(ctx context.Context, userID, TargetUserID uuid.UUID) (*Relationship, error) {
 	query := `SELECT id, user_id, other_user_id, relationship_status, created_at, updated_at 
               FROM relationships
               WHERE 
@@ -110,7 +110,7 @@ func (r *relationshipsRepo) FindRelationshipByUserIDAndOtherUserID(ctx context.C
                 END`
 
 	var relationship Relationship
-	err := r.db.QueryRowContext(ctx, query, userID, otherUserID).Scan(
+	err := r.db.QueryRowContext(ctx, query, userID, TargetUserID).Scan(
 		&relationship.ID,
 		&relationship.UserID,
 		&relationship.OtherUserID,
@@ -125,14 +125,14 @@ func (r *relationshipsRepo) FindRelationshipByUserIDAndOtherUserID(ctx context.C
 	return &relationship, nil
 }
 
-func (r *relationshipsRepo) UpdateRelationshipStatus(ctx context.Context, userID, otherUserID uuid.UUID, status RelationshipStatus) (*Relationship, error) {
+func (r *relationshipsRepo) UpdateRelationshipStatus(ctx context.Context, userID, TargetUserID uuid.UUID, status RelationshipStatus) (*Relationship, error) {
 	query := `UPDATE relationships SET relationship_status = 'friend'
 	WHERE user_id = $1 AND other_user_id = $2
 	RETURNING id, user_id, other_user_id, relationship_status, created_at`
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	row := r.db.QueryRowContext(ctx, query, userID, otherUserID)
+	row := r.db.QueryRowContext(ctx, query, userID, TargetUserID)
 
 	var relationship Relationship
 	err := row.Scan(&relationship.ID, &relationship.UserID, &relationship.OtherUserID, &relationship.RelationshipStatus, &relationship.CreatedAt)
@@ -167,7 +167,7 @@ func (r *relationshipsRepo) FindAllRelationshipsByUserID(ctx context.Context, us
 	return relationships, nil
 }
 
-func (r *relationshipsRepo) DeleteRelationship(ctx context.Context, userID, otherUserID uuid.UUID) error {
+func (r *relationshipsRepo) DeleteRelationship(ctx context.Context, userID, TargetUserID uuid.UUID) error {
 	query := `DELETE FROM relationships
 			  WHERE (user_id = $1 AND other_user_id = $2)
 			  OR (user_id = $2 AND other_user_id = $1)`
@@ -175,7 +175,7 @@ func (r *relationshipsRepo) DeleteRelationship(ctx context.Context, userID, othe
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	_, err := r.db.ExecContext(ctx, query, userID, otherUserID)
+	_, err := r.db.ExecContext(ctx, query, userID, TargetUserID)
 	if err != nil {
 		return err
 	}

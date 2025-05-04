@@ -111,3 +111,21 @@ func (p *SupabaseAuthMiddlewareProvider) AuthMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+func AuthenticateWebSocketRequest(c *gin.Context, authService AuthService) (string, error) {
+	token := c.Query("token")
+	if token == "" {
+		return "", errors.New("missing token in query")
+	}
+
+	authResult, err := authService.Authenticate(token)
+	if err != nil {
+		return "", err
+	}
+
+	if authResult.Expired {
+		return "", errors.New("token expired")
+	}
+
+	return authResult.UserId, nil
+}
