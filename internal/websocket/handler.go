@@ -27,7 +27,7 @@ func NewWebSocketHandler(wsManager *Manager, config *config.Config) *WebSocketHa
 
 func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	authService := &auth.SupabaseAuthService{
-		JwtSecret: h.config.SupabaseJwtSecret, // You can inject config if needed
+		JwtSecret: h.config.SupabaseJwtSecret,
 	}
 
 	currentUserId, err := auth.AuthenticateWebSocketRequest(c, authService)
@@ -43,8 +43,7 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	// Store user ID in the session for later retrieval
-	h.wsManager.GetMelody().HandleRequestWithKeys(c.Writer, c.Request, map[string]interface{}{
+	h.wsManager.GetMelody().HandleRequestWithKeys(c.Writer, c.Request, map[string]any{
 		"user_id": currentUserId,
 	})
 }
