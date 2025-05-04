@@ -85,7 +85,6 @@ func (s *relationshipsService) CreateRelationship(ctx context.Context, username 
 	// Notify the other user about the new friend request
 	senderProfile, err := s.supabaseClient.GetUserByID(ctx, currentUserID)
 	if err != nil {
-		// Log error but don't fail the request
 		log.Printf("Error fetching sender profile: %v", err)
 	} else {
 		// Send WebSocket notification
@@ -196,6 +195,28 @@ func (s *relationshipsService) AcceptFriendRequest(ctx context.Context, currentU
 	_, err = s.relationshipsRepo.UpdateRelationshipStatus(ctx, targetUserID, currentUserID, RelationshipStatusFriend)
 	if err != nil {
 		return nil, fmt.Errorf("could not update other user's relationship: %w", err)
+	}
+
+	senderProfile, err := s.supabaseClient.GetUserByID(ctx, currentUserID)
+	if err != nil {
+		// Log error but don't fail the request
+		log.Printf("Error fetching sender profile: %v", err)
+	} else {
+		// Send WebSocket notification
+		notification := map[string]any{
+			"type": "FRIEND_REQUEST_ACCEPTED",
+			"data": map[string]any{
+				"relationship_id": updatedRelationship.ID.String(),
+				"sender": map[string]any{
+					"id":         senderProfile.ID.String(),
+					"username":   senderProfile.Username,
+					"avatar_url": senderProfile.AvatarUrl,
+				},
+			},
+		}
+
+		notificationJSON, _ := json.Marshal(notification)
+		s.wsManager.SendToUser(targetUser.ID, notificationJSON)
 	}
 
 	return updatedRelationship, nil
