@@ -11,6 +11,7 @@ type ChannelsService interface {
 	GetDMChannel(ctx context.Context, userId, targetUserID uuid.UUID) (*Channel, error)
 	CreateGroupChannel(ctx context.Context, userId uuid.UUID, name string, channelMemberIDs []uuid.UUID) (*Channel, []uuid.UUID, error)
 	GetAllChannels(ctx context.Context, userId uuid.UUID) ([]*Channel, error)
+	GetDMChannelByID(ctx context.Context, channelID uuid.UUID) (*Channel, error)
 }
 
 type channelsService struct {
@@ -54,4 +55,17 @@ func (s *channelsService) GetAllChannels(ctx context.Context, userId uuid.UUID) 
 	}
 
 	return channels, nil
+}
+
+func (s *channelsService) GetDMChannelByID(ctx context.Context, channelID uuid.UUID) (*Channel, error) {
+	channel, err := s.channelsRepo.FindDMChannelByID(ctx, channelID)
+	if err != nil {
+		return nil, fmt.Errorf("error finding DM channel by ID: %w", err)
+	}
+
+	if channel == nil {
+		return nil, fmt.Errorf("channel not found")
+	}
+
+	return channel, nil
 }

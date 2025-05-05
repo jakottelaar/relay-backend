@@ -15,6 +15,7 @@ import (
 	"github.com/jakottelaar/relay-backend/internal"
 	"github.com/jakottelaar/relay-backend/internal/auth"
 	"github.com/jakottelaar/relay-backend/internal/channels"
+	"github.com/jakottelaar/relay-backend/internal/messages"
 	"github.com/jakottelaar/relay-backend/internal/relationships"
 	"github.com/jakottelaar/relay-backend/internal/supabase"
 	"github.com/jakottelaar/relay-backend/internal/websocket"
@@ -129,6 +130,16 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDepen
 	{
 		channels.POST("/groups", channelsHandler.CreateGroupChannel)
 		channels.GET("", channelsHandler.GetAllChannels)
+	}
+
+	messagesRepo := messages.NewMessagesRepo(db)
+	messagesService := messages.NewMessagesService(messagesRepo, channelsService)
+	messagesHandler := messages.NewMessagesHandler(messagesService)
+
+	messages := r.Group("/api/v1/channels/:channel_id/messages")
+	messages.Use(authMiddleware)
+	{
+		messages.POST("", messagesHandler.CreateMessage)
 	}
 
 }
