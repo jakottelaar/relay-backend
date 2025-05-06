@@ -5,10 +5,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jakottelaar/relay-backend/internal/channels"
+	"github.com/jakottelaar/relay-backend/internal/common"
 )
 
 type MessagesService interface {
 	CreateMessage(ctx context.Context, senderID, channelID uuid.UUID, content string) (*Message, error)
+	GetMessages(ctx context.Context, userID, channelID uuid.UUID, filters common.Filters) ([]*Message, common.Metadata, error)
 }
 
 type messagesService struct {
@@ -35,4 +37,18 @@ func (s *messagesService) CreateMessage(ctx context.Context, senderID, channelID
 	}
 
 	return message, nil
+}
+
+func (s *messagesService) GetMessages(ctx context.Context, userID, channelID uuid.UUID, filters common.Filters) ([]*Message, common.Metadata, error) {
+	_, err := s.channelsService.GetDMChannelByID(ctx, channelID)
+	if err != nil {
+		return nil, common.Metadata{}, err
+	}
+
+	messages, metadata, err := s.messagesRepo.FindMessages(ctx, userID, channelID, filters)
+	if err != nil {
+		return nil, metadata, err
+	}
+
+	return messages, metadata, nil
 }
