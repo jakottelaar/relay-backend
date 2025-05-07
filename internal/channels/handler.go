@@ -115,11 +115,12 @@ func (h *ChannelsHandler) GetAllChannels(c *gin.Context) {
 	channelsResponse := make([]*GetChannelResponse, 0, len(fetchedChannels))
 	for _, channel := range fetchedChannels {
 		channelsResponse = append(channelsResponse, &GetChannelResponse{
-			ID:          channel.ID,
-			Name:        channel.Name,
-			OwnerID:     channel.OwnerID,
-			ChannelType: channel.ChannelType,
-			CreatedAt:   channel.CreatedAt,
+			ID:             channel.ID,
+			Name:           channel.Name,
+			OwnerID:        channel.OwnerID,
+			ChannelType:    channel.ChannelType,
+			CreatedAt:      channel.CreatedAt,
+			ChannelMembers: channel.ChannelMembers,
 		})
 	}
 

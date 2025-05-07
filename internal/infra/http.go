@@ -116,7 +116,7 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDepen
 	}
 
 	channelsRepo := channels.NewChannelsRepo(db)
-	channelsService := channels.NewChannelsService(channelsRepo)
+	channelsService := channels.NewChannelsService(channelsRepo, supabaseClient)
 	channelsHandler := channels.NewChannelsHandler(channelsService)
 
 	dmChannels := r.Group("/api/v1/users")

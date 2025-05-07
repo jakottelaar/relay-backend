@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jakottelaar/relay-backend/internal/supabase"
 )
 
 type ChannelType string
@@ -29,12 +30,18 @@ type ChannelMember struct {
 	JoinedAt  time.Time
 }
 
+type ChannelWithMembers struct {
+	Channel *Channel
+	Members []uuid.UUID
+}
+
 type GetChannelResponse struct {
-	ID          string      `json:"id"`
-	Name        string      `json:"name"`
-	OwnerID     uuid.UUID   `json:"owner_id"`
-	ChannelType ChannelType `json:"channel_type"`
-	CreatedAt   time.Time   `json:"created_at"`
+	ID             string             `json:"id"`
+	Name           string             `json:"name"`
+	OwnerID        uuid.UUID          `json:"owner_id"`
+	ChannelType    ChannelType        `json:"channel_type"`
+	ChannelMembers []supabase.Profile `json:"channel_members"`
+	CreatedAt      time.Time          `json:"created_at"`
 }
 
 type CreateGroupChannelRequest struct {

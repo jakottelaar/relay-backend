@@ -16,7 +16,7 @@ type ChannelsRepo interface {
 	SaveDMChannel(ctx context.Context, userId, targetUserID uuid.UUID) (*Channel, error)
 	AddUserToChannel(ctx context.Context, channelID, userID uuid.UUID, tx *sql.Tx) (uuid.UUID, error)
 	SaveGroupChannel(ctx context.Context, ownerUserID uuid.UUID, name string, channelMemberIDs []uuid.UUID) (*Channel, []uuid.UUID, error)
-	FindAllChannelsByUserID(ctx context.Context, userID uuid.UUID) ([]*Channel, error)
+	FindAllChannelsByUserID(ctx context.Context, userID uuid.UUID) ([]*ChannelWithMembers, error)
 	FindDMChannelByID(ctx context.Context, channelID uuid.UUID) (*Channel, error)
 }
 
@@ -194,13 +194,22 @@ func (r *channelsRepo) SaveGroupChannel(ctx context.Context, ownerUserID uuid.UU
 	return savedChannel, memberUserIDs, nil
 }
 
-func (r *channelsRepo) FindAllChannelsByUserID(ctx context.Context, userID uuid.UUID) ([]*Channel, error) {
+func (r *channelsRepo) FindAllChannelsByUserID(ctx context.Context, userID uuid.UUID) ([]*ChannelWithMembers, error) {
 	query := `
-		SELECT c.id, c.name, c.owner_id, c.type, c.created_at, c.updated_at
+		SELECT 
+			c.id, c.name, c.owner_id, c.type, c.created_at, c.updated_at, 
+			cm.user_id
 		FROM channels c
 		JOIN channel_members cm ON c.id = cm.channel_id
-		WHERE cm.user_id = $1
+		WHERE c.id IN (
+			SELECT c2.id
+			FROM channels c2
+			JOIN channel_members cm2 ON c2.id = cm2.channel_id
+			WHERE cm2.user_id = $1
+		)
+		ORDER BY c.created_at DESC
 	`
+
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
@@ -210,17 +219,47 @@ func (r *channelsRepo) FindAllChannelsByUserID(ctx context.Context, userID uuid.
 	}
 	defer rows.Close()
 
-	channels := []*Channel{}
+	channelMap := map[string]*ChannelWithMembers{}
+
 	for rows.Next() {
-		channel := &Channel{}
-		err := rows.Scan(&channel.ID, &channel.Name, &channel.OwnerID, &channel.ChannelType, &channel.CreatedAt, &channel.UpdatedAt)
+		var (
+			channelID    string
+			name         string
+			ownerID      uuid.UUID
+			channelType  ChannelType
+			createdAt    time.Time
+			updatedAt    time.Time
+			memberUserID uuid.UUID
+		)
+
+		err := rows.Scan(&channelID, &name, &ownerID, &channelType, &createdAt, &updatedAt, &memberUserID)
 		if err != nil {
 			return nil, err
 		}
-		channels = append(channels, channel)
+
+		if _, exists := channelMap[channelID]; !exists {
+			channelMap[channelID] = &ChannelWithMembers{
+				Channel: &Channel{
+					ID:          channelID,
+					Name:        name,
+					OwnerID:     ownerID,
+					ChannelType: channelType,
+					CreatedAt:   createdAt,
+					UpdatedAt:   updatedAt,
+				},
+				Members: []uuid.UUID{},
+			}
+		}
+
+		channelMap[channelID].Members = append(channelMap[channelID].Members, memberUserID)
 	}
 
-	return channels, nil
+	result := make([]*ChannelWithMembers, 0, len(channelMap))
+	for _, v := range channelMap {
+		result = append(result, v)
+	}
+
+	return result, nil
 }
 
 func (r *channelsRepo) FindDMChannelByID(ctx context.Context, channelID uuid.UUID) (*Channel, error) {
