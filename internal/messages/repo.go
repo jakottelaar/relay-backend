@@ -46,12 +46,17 @@ func (r *messagesRepo) SaveMessage(ctx context.Context, senderID, channelID uuid
 
 func (r *messagesRepo) FindMessages(ctx context.Context, userID, channelID uuid.UUID, filters common.Filters) ([]*Message, common.Metadata, error) {
 	query := fmt.Sprintf(`
-		SELECT count(*) OVER(), id, sender_id, channel_id, content, created_at, updated_at, deleted_at, is_edited 
-		FROM messages 
-		WHERE channel_id = $1 AND sender_id = $2 
-		ORDER BY %s %s
-		LIMIT $3 OFFSET $4
-	`, filters.SortColumn(), filters.SortDirection())
+	SELECT count(*) OVER(), id, sender_id, channel_id, content, created_at, updated_at, deleted_at, is_edited
+	FROM messages
+	WHERE channel_id = $1 
+	  AND EXISTS (
+	    SELECT 1 
+	    FROM channel_members 
+	    WHERE channel_id = $1 AND user_id = $2
+	  )
+	ORDER BY %s %s
+	LIMIT $3 OFFSET $4
+`, filters.SortColumn(), filters.SortDirection())
 
 	rows, err := r.db.QueryContext(ctx, query, channelID, userID, filters.Limit(), filters.Offset())
 	if err != nil {

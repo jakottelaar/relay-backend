@@ -81,11 +81,6 @@ func NewApp(ctx context.Context, cfg *config.Config, deps *AppDependencies) (*Ap
 
 func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDependencies) {
 
-	wsManager := websocket.NewManager()
-	wsHandler := websocket.NewWebSocketHandler(wsManager, &cfg)
-
-	r.GET("/ws", wsHandler.HandleWebSocket)
-
 	authMiddleware := deps.AuthMiddlewareProvider.AuthMiddleware()
 
 	r.Use(internal.ErrorHandler())
@@ -100,20 +95,6 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDepen
 	r.GET("/health", authMiddleware, handleHealth(db))
 
 	supabaseClient := deps.SupabaseClient
-
-	relationShipsRepo := relationships.NewRelationshipsRepo(db)
-	relationShipsService := relationships.NewRelationshipsService(relationShipsRepo, supabaseClient, wsManager)
-	relationshipsHandler := relationships.NewRelationshipsHandler(relationShipsService)
-
-	relationShips := r.Group("/api/v1/relationships")
-	relationShips.Use(authMiddleware)
-	{
-		relationShips.POST("/friend-requests", relationshipsHandler.CreateRelationship)
-		relationShips.GET("", relationshipsHandler.GetAllRelationships)
-		relationShips.PATCH("/users/:target_user_id/friend-requests", relationshipsHandler.AcceptFriendRequest)
-		relationShips.DELETE("/users/:target_user_id/friend-requests", relationshipsHandler.CancelOrRejectFriendRequest)
-		relationShips.DELETE("/users/:target_user_id/friends", relationshipsHandler.RemoveFriend)
-	}
 
 	channelsRepo := channels.NewChannelsRepo(db)
 	channelsService := channels.NewChannelsService(channelsRepo, supabaseClient)
@@ -141,6 +122,25 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDepen
 	{
 		messages.POST("", messagesHandler.CreateMessage)
 		messages.GET("", messagesHandler.GetMessages)
+	}
+
+	wsManager := websocket.NewManager(messagesService)
+	wsHandler := websocket.NewWebSocketHandler(wsManager, &cfg)
+
+	r.GET("/ws", wsHandler.HandleWebSocket)
+
+	relationShipsRepo := relationships.NewRelationshipsRepo(db)
+	relationShipsService := relationships.NewRelationshipsService(relationShipsRepo, supabaseClient, wsManager)
+	relationshipsHandler := relationships.NewRelationshipsHandler(relationShipsService)
+
+	relationShips := r.Group("/api/v1/relationships")
+	relationShips.Use(authMiddleware)
+	{
+		relationShips.POST("/friend-requests", relationshipsHandler.CreateRelationship)
+		relationShips.GET("", relationshipsHandler.GetAllRelationships)
+		relationShips.PATCH("/users/:target_user_id/friend-requests", relationshipsHandler.AcceptFriendRequest)
+		relationShips.DELETE("/users/:target_user_id/friend-requests", relationshipsHandler.CancelOrRejectFriendRequest)
+		relationShips.DELETE("/users/:target_user_id/friends", relationshipsHandler.RemoveFriend)
 	}
 
 }
