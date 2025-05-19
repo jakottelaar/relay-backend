@@ -257,7 +257,7 @@ func (m *Manager) handleSendMessage(s *melody.Session, msg []byte) {
 		return
 	}
 
-	currentUserID, ok := s.Get("user_id") // You should have set this during WebSocket auth
+	currentUserID, ok := s.Get("user_id")
 	if !ok {
 		m.sendError(s, "Unauthorized")
 		return

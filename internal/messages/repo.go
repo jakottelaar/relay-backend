@@ -7,12 +7,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jakottelaar/relay-backend/internal"
 	"github.com/jakottelaar/relay-backend/internal/common"
 )
 
 type MessagesRepo interface {
 	SaveMessage(ctx context.Context, senderID, channelID uuid.UUID, content string) (*Message, error)
 	FindMessages(ctx context.Context, userID, channelID uuid.UUID, filters common.Filters) ([]*Message, common.Metadata, error)
+	FindMessageByID(ctx context.Context, messageID uuid.UUID) (*Message, error)
+	UpdateMessage(ctx context.Context, userID, messageID uuid.UUID, content string) (*Message, error)
 }
 
 type messagesRepo struct {
@@ -83,4 +86,54 @@ func (r *messagesRepo) FindMessages(ctx context.Context, userID, channelID uuid.
 	metadata := common.CalculateMetadata(totalRecords, filters.Page, filters.PageSize)
 
 	return messages, metadata, nil
+}
+
+func (r *messagesRepo) FindMessageByID(ctx context.Context, messageID uuid.UUID) (*Message, error) {
+	query := `
+		SELECT id, sender_id, channel_id, content, created_at, updated_at, deleted_at, is_edited
+		FROM messages
+		WHERE id = $1
+	`
+
+	var message Message
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	err := r.db.QueryRowContext(ctx, query, messageID).Scan(
+		&message.ID, &message.SenderID, &message.ChannelID, &message.Content,
+		&message.CreatedAt, &message.UpdatedAt, &message.DeletedAt, &message.IsEdited,
+	)
+	if err != nil {
+		switch {
+		case err == sql.ErrNoRows:
+			return nil, internal.NewNotFoundError("Message not found")
+		default:
+			return nil, fmt.Errorf("failed to find message: %w", err)
+		}
+	}
+
+	return &message, nil
+}
+
+func (r *messagesRepo) UpdateMessage(ctx context.Context, userID, messageID uuid.UUID, content string) (*Message, error) {
+	query := `
+		UPDATE messages
+		SET content = $1, updated_at = NOW(), is_edited = TRUE
+		WHERE id = $2 AND sender_id = $3
+		RETURNING id, sender_id, channel_id, content, created_at, updated_at, deleted_at, is_edited
+	`
+
+	var message Message
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	err := r.db.QueryRowContext(ctx, query, content, messageID, userID).Scan(
+		&message.ID, &message.SenderID, &message.ChannelID, &message.Content,
+		&message.CreatedAt, &message.UpdatedAt, &message.DeletedAt, &message.IsEdited,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &message, nil
 }

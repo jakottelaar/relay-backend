@@ -130,3 +130,47 @@ func (h *MessagesHandler) GetMessages(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"messages": responseMessages, "metadata": metadata})
 }
+
+func (h *MessagesHandler) UpdateMessage(c *gin.Context) {
+	currentUserID, ok := c.Get("user_id")
+	if !ok {
+		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
+		return
+	}
+
+	userID, err := uuid.Parse(currentUserID.(string))
+	if err != nil {
+		log.Printf("messages: failed to parse user_id: %v", err)
+		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
+		return
+	}
+
+	messageID, err := uuid.Parse(c.Param("message_id"))
+	if err != nil {
+		_ = c.Error(internal.NewBadRequestError("Invalid message id"))
+		return
+	}
+
+	var request UpdateMessageRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		log.Printf("messages: failed to bind request: %v", err)
+		_ = c.Error(internal.NewBadRequestError("Invalid request body"))
+		return
+	}
+
+	message, err := h.service.UpdateMessage(c.Request.Context(), userID, messageID, request.Content)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": &UpdateMessageResponse{
+		ID:        message.ID,
+		SenderID:  message.SenderID,
+		ChannelID: message.ChannelID,
+		Content:   message.Content,
+		CreatedAt: message.CreatedAt,
+		UpdatedAt: message.UpdatedAt,
+		DeletedAt: message.DeletedAt,
+	}})
+}

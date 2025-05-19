@@ -122,6 +122,7 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDepen
 	{
 		messages.POST("", messagesHandler.CreateMessage)
 		messages.GET("", messagesHandler.GetMessages)
+		messages.PATCH("/:message_id", messagesHandler.UpdateMessage)
 	}
 
 	wsManager := websocket.NewManager(messagesService)

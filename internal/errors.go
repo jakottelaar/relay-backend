@@ -69,6 +69,14 @@ func NewUnauthorizedError(msg string) error {
 	}
 }
 
+func NewForbiddenError(msg string) error {
+	return &ServiceError{
+		Code:    http.StatusForbidden,
+		Message: msg,
+		Err:     errors.New(msg),
+	}
+}
+
 func ErrorHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
