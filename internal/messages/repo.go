@@ -16,6 +16,7 @@ type MessagesRepo interface {
 	FindMessages(ctx context.Context, userID, channelID uuid.UUID, filters common.Filters) ([]*Message, common.Metadata, error)
 	FindMessageByID(ctx context.Context, messageID uuid.UUID) (*Message, error)
 	UpdateMessage(ctx context.Context, userID, messageID uuid.UUID, content string) (*Message, error)
+	DeleteMessage(ctx context.Context, userID, messageID uuid.UUID) error
 }
 
 type messagesRepo struct {
@@ -136,4 +137,30 @@ func (r *messagesRepo) UpdateMessage(ctx context.Context, userID, messageID uuid
 	}
 
 	return &message, nil
+}
+
+func (r *messagesRepo) DeleteMessage(ctx context.Context, userID, messageID uuid.UUID) error {
+	query := `
+		DELETE FROM messages
+		WHERE id = $1 AND sender_id = $2
+	`
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	result, err := r.db.ExecContext(ctx, query, messageID, userID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return internal.NewNotFoundError("Message not found")
+	}
+
+	return nil
 }

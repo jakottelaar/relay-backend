@@ -174,3 +174,32 @@ func (h *MessagesHandler) UpdateMessage(c *gin.Context) {
 		DeletedAt: message.DeletedAt,
 	}})
 }
+
+func (h *MessagesHandler) DeleteMessage(c *gin.Context) {
+	currentUserID, ok := c.Get("user_id")
+	if !ok {
+		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
+		return
+	}
+
+	userID, err := uuid.Parse(currentUserID.(string))
+	if err != nil {
+		log.Printf("messages: failed to parse user_id: %v", err)
+		_ = c.Error(internal.NewUnauthorizedError("Unauthorized"))
+		return
+	}
+
+	messageID, err := uuid.Parse(c.Param("message_id"))
+	if err != nil {
+		_ = c.Error(internal.NewBadRequestError("Invalid message id"))
+		return
+	}
+
+	err = h.service.DeleteMessage(c.Request.Context(), userID, messageID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusNoContent, nil)
+}

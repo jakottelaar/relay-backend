@@ -13,6 +13,7 @@ type MessagesService interface {
 	CreateMessage(ctx context.Context, senderID, channelID uuid.UUID, content string) (*Message, error)
 	GetMessages(ctx context.Context, userID, channelID uuid.UUID, filters common.Filters) ([]*Message, common.Metadata, error)
 	UpdateMessage(ctx context.Context, userID, messageID uuid.UUID, content string) (*Message, error)
+	DeleteMessage(ctx context.Context, userID, messageID uuid.UUID) error
 }
 
 type messagesService struct {
@@ -72,4 +73,21 @@ func (s *messagesService) UpdateMessage(ctx context.Context, userID, messageID u
 	}
 
 	return updatedMessage, nil
+}
+
+func (s *messagesService) DeleteMessage(ctx context.Context, userID, messageID uuid.UUID) error {
+	message, err := s.messagesRepo.FindMessageByID(ctx, messageID)
+	if err != nil {
+		return err
+	}
+
+	if message.SenderID != userID {
+		return internal.NewForbiddenError("You are not the sender of this message")
+	}
+
+	err = s.messagesRepo.DeleteMessage(ctx, userID, messageID)
+	if err != nil {
+		return err
+	}
+	return nil
 }

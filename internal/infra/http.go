@@ -123,6 +123,7 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDepen
 		messages.POST("", messagesHandler.CreateMessage)
 		messages.GET("", messagesHandler.GetMessages)
 		messages.PATCH("/:message_id", messagesHandler.UpdateMessage)
+		messages.DELETE("/:message_id", messagesHandler.DeleteMessage)
 	}
 
 	wsManager := websocket.NewManager(messagesService)
