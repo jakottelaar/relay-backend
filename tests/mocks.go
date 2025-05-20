@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jakottelaar/relay-backend/internal"
 	"github.com/jakottelaar/relay-backend/internal/auth"
 	"github.com/jakottelaar/relay-backend/internal/supabase"
 	"github.com/stretchr/testify/mock"
@@ -48,16 +49,25 @@ type MockSupabaseClient struct {
 
 func (m *MockSupabaseClient) GetUserByUsername(ctx context.Context, username string) (*supabase.Profile, error) {
 	args := m.Called(ctx, username)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	if args.Get(0) == nil && args.Error(1) != nil {
+		return nil, internal.NewNotFoundError("User not found")
 	}
-	return args.Get(0).(*supabase.Profile), args.Error(1)
+
+	if args.Get(0) != nil {
+		return args.Get(0).(*supabase.Profile), nil
+	}
+
+	return nil, args.Error(1)
 }
 
 func (m *MockSupabaseClient) GetUserByID(ctx context.Context, id uuid.UUID) (*supabase.Profile, error) {
 	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	if args.Get(0) == nil && args.Error(1) != nil {
+		return nil, internal.NewNotFoundError("User not found")
+	}
+
+	if args.Get(0) != nil {
+		return args.Get(0).(*supabase.Profile), nil
 	}
 	return args.Get(0).(*supabase.Profile), args.Error(1)
 }

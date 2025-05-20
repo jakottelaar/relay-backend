@@ -33,6 +33,12 @@ func TestCreateDMChannel(t *testing.T) {
 			targetuserID: "invalid-user-id",
 			wantStatus:   http.StatusBadRequest,
 		},
+		{
+			name:         "user not found",
+			userID:       user1.ID.String(),
+			targetuserID: "00000000-0000-0000-0000-000000000000",
+			wantStatus:   http.StatusNotFound,
+		},
 	}
 
 	for _, tt := range tests {

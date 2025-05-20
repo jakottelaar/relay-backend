@@ -37,7 +37,7 @@ func NewRelationshipsService(relationshipsRepo RelationshipsRepo, supabaseClient
 func (s *relationshipsService) CreateRelationship(ctx context.Context, username string, currentUserID uuid.UUID) (*Relationship, error) {
 	targetUser, err := s.supabaseClient.GetUserByUsername(ctx, username)
 	if err != nil {
-		return nil, internal.NewNotFoundError("User not found")
+		return nil, err
 	}
 
 	if targetUser.ID == currentUserID {
@@ -151,18 +151,15 @@ func (s *relationshipsService) GetAllRelationships(ctx context.Context, currentU
 }
 
 func (s *relationshipsService) AcceptFriendRequest(ctx context.Context, currentUserID uuid.UUID, targetUserID uuid.UUID) (*Relationship, error) {
-	// Fetch target user to ensure they exist
 	targetUser, err := s.supabaseClient.GetUserByID(ctx, targetUserID)
 	if err != nil {
-		return nil, internal.NewNotFoundError("User not found")
+		return nil, err
 	}
 
-	// Prevent accepting a friend request from yourself
 	if targetUser.ID == currentUserID {
 		return nil, internal.NewBadRequestError("Cannot accept own friend request")
 	}
 
-	// Fetch the relationship record
 	relationship, err := s.relationshipsRepo.FindRelationshipByUserIDAndTargetUserID(ctx, currentUserID, targetUserID)
 	if err != nil {
 		return nil, fmt.Errorf("could not find relationship: %w", err)
@@ -171,22 +168,18 @@ func (s *relationshipsService) AcceptFriendRequest(ctx context.Context, currentU
 		return nil, internal.NewBadRequestError("No friend request found")
 	}
 
-	// Check if they are already friends
 	if relationship.RelationshipStatus == RelationshipStatusFriend {
 		return nil, internal.NewBadRequestError("Already friends")
 	}
 
-	// Ensure the friend request exists in the correct state
 	if relationship.RelationshipStatus == RelationshipStatusOutgoing {
 		return nil, internal.NewBadRequestError("Cannot accept outgoing friend request")
 	}
 
-	// Ensure the friend request exists in the correct state
 	if relationship.RelationshipStatus != RelationshipStatusIncoming {
 		return nil, internal.NewBadRequestError("Unexpected relationship state")
 	}
 
-	// Update both records to "friend"
 	updatedRelationship, err := s.relationshipsRepo.UpdateRelationshipStatus(ctx, currentUserID, targetUserID, RelationshipStatusFriend)
 	if err != nil {
 		return nil, fmt.Errorf("could not accept friend request: %w", err)
@@ -199,10 +192,8 @@ func (s *relationshipsService) AcceptFriendRequest(ctx context.Context, currentU
 
 	senderProfile, err := s.supabaseClient.GetUserByID(ctx, currentUserID)
 	if err != nil {
-		// Log error but don't fail the request
 		log.Printf("Error fetching sender profile: %v", err)
 	} else {
-		// Send WebSocket notification
 		notification := map[string]any{
 			"type": "FRIEND_REQUEST_ACCEPTED",
 			"data": map[string]any{
@@ -223,18 +214,15 @@ func (s *relationshipsService) AcceptFriendRequest(ctx context.Context, currentU
 }
 
 func (s *relationshipsService) CancelOrRejectFriendRequest(ctx context.Context, currentUserID uuid.UUID, targetUserID uuid.UUID) (string, error) {
-	// Fetch target user to ensure they exist
 	targetUser, err := s.supabaseClient.GetUserByID(ctx, targetUserID)
 	if err != nil {
-		return "", internal.NewNotFoundError("User not found")
+		return "", err
 	}
 
-	// Prevent cancelling a friend request to yourself
 	if targetUser.ID == currentUserID {
 		return "", internal.NewBadRequestError("Cannot cancel own friend request")
 	}
 
-	// Fetch the relationship record
 	relationship, err := s.relationshipsRepo.FindRelationshipByUserIDAndTargetUserID(ctx, currentUserID, targetUserID)
 	if err != nil {
 		return "", fmt.Errorf("could not find relationship: %w", err)
@@ -243,14 +231,11 @@ func (s *relationshipsService) CancelOrRejectFriendRequest(ctx context.Context, 
 		return "", internal.NewBadRequestError("No friend request found")
 	}
 
-	// Check if they are already friends
 	if relationship.RelationshipStatus == RelationshipStatusFriend {
 		return "", internal.NewBadRequestError("Already friends")
 	}
 
-	// Ensure the friend request exists in the correct state
 	if relationship.RelationshipStatus == RelationshipStatusIncoming {
-		// Delete the incoming relationship
 		err = s.relationshipsRepo.DeleteRelationship(ctx, currentUserID, targetUserID)
 		if err != nil {
 			return "", fmt.Errorf("could not delete incoming relationship: %w", err)
@@ -258,12 +243,10 @@ func (s *relationshipsService) CancelOrRejectFriendRequest(ctx context.Context, 
 		return "Friend request declined", nil
 	}
 
-	// Ensure the friend request exists in the correct state
 	if relationship.RelationshipStatus != RelationshipStatusOutgoing {
 		return "", internal.NewBadRequestError("Unexpected relationship state")
 	}
 
-	// Delete the outgoing relationship
 	err = s.relationshipsRepo.DeleteRelationship(ctx, currentUserID, targetUserID)
 	if err != nil {
 		return "", fmt.Errorf("could not delete outgoing relationship: %w", err)
@@ -275,7 +258,7 @@ func (s *relationshipsService) CancelOrRejectFriendRequest(ctx context.Context, 
 func (s *relationshipsService) RemoveFriend(ctx context.Context, currentUserID uuid.UUID, targetUserID uuid.UUID) error {
 	_, err := s.supabaseClient.GetUserByID(ctx, targetUserID)
 	if err != nil {
-		return internal.NewNotFoundError("User not found")
+		return err
 	}
 
 	relationship, err := s.relationshipsRepo.FindRelationshipByUserIDAndTargetUserID(ctx, currentUserID, targetUserID)

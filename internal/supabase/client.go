@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jakottelaar/relay-backend/internal"
 )
 
 type Profile struct {
@@ -44,24 +45,24 @@ func (c *supabaseClient) GetUserByUsername(ctx context.Context, username string)
 		fmt.Sprintf("%s/rest/v1/profiles?username=eq.%s&select=id,username,email,avatar_url,updated_at", c.Url, username),
 		nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
 	req.Header.Add("apikey", c.ApiKey)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch user from Supabase: %w", err)
 	}
 	defer resp.Body.Close()
 
 	var profiles []Profile
 	if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse Supabase response: %w", err)
 	}
 
 	if len(profiles) == 0 {
-		return nil, fmt.Errorf("user not found")
+		return nil, internal.NewNotFoundError("User not found")
 	}
 
 	return &profiles[0], nil
@@ -72,24 +73,24 @@ func (c *supabaseClient) GetUserByID(ctx context.Context, id uuid.UUID) (*Profil
 		fmt.Sprintf("%s/rest/v1/profiles?id=eq.%s&select=id,username,email,avatar_url,updated_at", c.Url, id.String()),
 		nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
 	req.Header.Add("apikey", c.ApiKey)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch user from Supabase: %w", err)
 	}
 	defer resp.Body.Close()
 
 	var profiles []Profile
 	if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse Supabase response: %w", err)
 	}
 
 	if len(profiles) == 0 {
-		return nil, fmt.Errorf("user not found")
+		return nil, internal.NewNotFoundError("User not found")
 	}
 
 	return &profiles[0], nil
@@ -112,7 +113,7 @@ func (c *supabaseClient) GetUsersByIDs(ctx context.Context, userIDs []uuid.UUID)
 			c.Url, idList),
 		nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
 	req.Header.Add("apikey", c.ApiKey)
@@ -120,28 +121,24 @@ func (c *supabaseClient) GetUsersByIDs(ctx context.Context, userIDs []uuid.UUID)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error executing request: %w", err)
+		return nil, fmt.Errorf("failed to fetch users from Supabase: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Check if the response was successful
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("got status %d: %s", resp.StatusCode, string(body))
 	}
 
-	// Read the body to debug the response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error reading response body: %w", err)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	// Create a new reader for the JSON decoder
 	profiles := []Profile{}
 	err = json.Unmarshal(body, &profiles)
 	if err != nil {
-		// If decoding as array fails, return with the error message and response body for debugging
-		return nil, fmt.Errorf("error decoding profiles (%s): %w", string(body), err)
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
 	// Convert slice to map keyed by user ID for easy lookup

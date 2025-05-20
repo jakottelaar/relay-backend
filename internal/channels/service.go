@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jakottelaar/relay-backend/internal"
 	"github.com/jakottelaar/relay-backend/internal/supabase"
 )
 
@@ -28,9 +29,17 @@ func NewChannelsService(channelsRepo ChannelsRepo, supabaseClient supabase.Supab
 }
 
 func (s *channelsService) GetDMChannel(ctx context.Context, currentUserID, targetUserID uuid.UUID) (*Channel, error) {
+	if currentUserID == targetUserID {
+		return nil, internal.NewBadRequestError("Cannot create DM channel with self")
+	}
+
+	_, err := s.supabaseClient.GetUserByID(ctx, targetUserID)
+	if err != nil {
+		return nil, err
+	}
+
 	channel, err := s.channelsRepo.FindDMChannelByUserIDs(ctx, currentUserID, targetUserID)
 	if err != nil {
-		// Any other error should be returned
 		return nil, fmt.Errorf("error finding DM channel: %w", err)
 	}
 
@@ -38,7 +47,6 @@ func (s *channelsService) GetDMChannel(ctx context.Context, currentUserID, targe
 		return s.channelsRepo.SaveDMChannel(ctx, currentUserID, targetUserID)
 	}
 
-	// Channel was found, return it
 	return channel, nil
 }
 
