@@ -15,6 +15,7 @@ type Config struct {
 	SupabaseJwtSecret string
 	SupabaseUrl       string
 	SupabaseApiKey    string
+	NatsUrl           string
 }
 
 func New() (*Config, error) {
@@ -26,7 +27,7 @@ func New() (*Config, error) {
 	if cfg.Environment == "development" {
 		err := godotenv.Load(".env.local")
 		if err != nil {
-			return nil, fmt.Errorf("Error loading .env.local file")
+			return nil, fmt.Errorf("error loading .env.local file")
 		}
 	}
 
@@ -50,6 +51,11 @@ func New() (*Config, error) {
 	cfg.SupabaseApiKey = getEnv("SUPABASE_API_KEY", "")
 	if cfg.SupabaseApiKey == "" {
 		return nil, fmt.Errorf("SUPABASE_API_KEY is required")
+	}
+
+	cfg.NatsUrl = getEnv("NATS_URL", "")
+	if cfg.NatsUrl == "" {
+		return nil, fmt.Errorf("NATS_URL is required")
 	}
 
 	return &cfg, nil

@@ -27,5 +27,14 @@ services:
     volumes:
       - data:/var/lib/postgresql/data
 
+  nats:
+    image: nats:latest
+    ports:
+      - "4222:4222"
+    container_name: relay-nats
+    environment:
+      - NATS_USER=admin
+      - NATS_PASSWORD=admin
+
 volumes:
   data:

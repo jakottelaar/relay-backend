@@ -19,6 +19,7 @@ import (
 	"github.com/jakottelaar/relay-backend/internal/relationships"
 	"github.com/jakottelaar/relay-backend/internal/supabase"
 	"github.com/jakottelaar/relay-backend/internal/websocket"
+	"github.com/nats-io/nats.go"
 )
 
 type AppDependencies struct {
@@ -32,12 +33,18 @@ type App struct {
 	config     *config.Config
 	db         *sql.DB
 	deps       *AppDependencies
+	nats       *nats.Conn
 }
 
 func NewApp(ctx context.Context, cfg *config.Config, deps *AppDependencies) (*App, error) {
 	db, err := initializeDB(cfg.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("initialize database: %w", err)
+	}
+
+	nats, err := initializeNats(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("initialize nats: %w", err)
 	}
 
 	if deps == nil && cfg.Environment != "test" {
@@ -59,7 +66,7 @@ func NewApp(ctx context.Context, cfg *config.Config, deps *AppDependencies) (*Ap
 		gin.Recovery(),
 	)
 
-	registerRoutes(router, db, *cfg, deps)
+	registerRoutes(router, db, *cfg, deps, nats)
 
 	log.Println("routes registered")
 
@@ -76,10 +83,11 @@ func NewApp(ctx context.Context, cfg *config.Config, deps *AppDependencies) (*Ap
 		config:     cfg,
 		db:         db,
 		deps:       deps,
+		nats:       nats,
 	}, nil
 }
 
-func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDependencies) {
+func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDependencies, nats *nats.Conn) {
 
 	authMiddleware := deps.AuthMiddlewareProvider.AuthMiddleware()
 
@@ -116,6 +124,10 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDepen
 	messagesRepo := messages.NewMessagesRepo(db)
 	messagesService := messages.NewMessagesService(messagesRepo, channelsService)
 	messagesHandler := messages.NewMessagesHandler(messagesService)
+	messagesEventHandler := messages.NewMessagesEventHandler(nats, messagesService)
+	if err := messagesEventHandler.RegisterHandlers(context.Background()); err != nil {
+		log.Fatalf("Failed to register message event handlers: %v", err)
+	}
 
 	messages := r.Group("/api/v1/channels/:channel_id/messages")
 	messages.Use(authMiddleware)
@@ -126,8 +138,12 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDepen
 		messages.DELETE("/:message_id", messagesHandler.DeleteMessage)
 	}
 
-	wsManager := websocket.NewManager(messagesService)
+	wsManager := websocket.NewManager(nats)
 	wsHandler := websocket.NewWebSocketHandler(wsManager, &cfg)
+	wsEventHandler := websocket.NewWebsocketEventHandler(nats, wsManager)
+	if err := wsEventHandler.RegisterHandlers(); err != nil {
+		log.Fatalf("Failed to register WebSocket event handlers: %v", err)
+	}
 
 	r.GET("/ws", wsHandler.HandleWebSocket)
 

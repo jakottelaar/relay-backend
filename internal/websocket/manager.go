@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"sync"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jakottelaar/relay-backend/internal/messages"
+	"github.com/nats-io/nats.go"
 	"github.com/olahol/melody"
 )
 
@@ -25,10 +25,10 @@ type Manager struct {
 	userIDBySession     map[*melody.Session]uuid.UUID
 	sessionsByChannelID map[string]map[*melody.Session]struct{}
 	mu                  sync.RWMutex
-	messageService      messages.MessagesService
+	natsConn            *nats.Conn
 }
 
-func NewManager(messagesService messages.MessagesService) *Manager {
+func NewManager(natsConn *nats.Conn) *Manager {
 	m := melody.New()
 
 	manager := &Manager{
@@ -36,13 +36,11 @@ func NewManager(messagesService messages.MessagesService) *Manager {
 		sessionsByUserID:    make(map[uuid.UUID][]*melody.Session),
 		userIDBySession:     make(map[*melody.Session]uuid.UUID),
 		sessionsByChannelID: make(map[string]map[*melody.Session]struct{}),
-		messageService:      messagesService,
+		natsConn:            natsConn,
 	}
 
-	// Set up handlers
 	m.HandleConnect(manager.handleConnect)
 	m.HandleDisconnect(manager.handleDisconnect)
-
 	m.HandleMessage(manager.handleMessage)
 
 	return manager
@@ -269,33 +267,26 @@ func (m *Manager) handleSendMessage(s *melody.Session, msg []byte) {
 		return
 	}
 
-	message, err := m.messageService.CreateMessage(context.Background(), userID, uuid.MustParse(payload.ChannelID), payload.Content)
+	channelID, err := uuid.Parse(payload.ChannelID)
 	if err != nil {
-		m.sendError(s, "Failed to save message")
+		m.sendError(s, "Invalid channel ID")
 		return
 	}
 
-	resp := struct {
-		Type    string                          `json:"type"`
-		Message *messages.CreateMessageResponse `json:"message"`
-		Sender  uuid.UUID                       `json:"sender"`
-	}{
-		Type: "MESSAGE_SENT",
-		Message: &messages.CreateMessageResponse{
-			ID:        message.ID,
-			SenderID:  message.SenderID,
-			ChannelID: message.ChannelID,
-			Content:   message.Content,
-			CreatedAt: message.CreatedAt,
-		},
-		Sender: message.SenderID,
+	event := &messages.CreateMessageEvent{
+		ChannelID: channelID,
+		Content:   payload.Content,
+		SenderID:  userID,
 	}
 
-	log.Printf("Broadcasting message to channel %s: %+v", payload.ChannelID, resp)
+	data, err := json.Marshal(event)
+	if err != nil {
+		m.sendError(s, "Failed to encode event")
+		return
+	}
 
-	responseJSON, _ := json.Marshal(resp)
-	m.melody.BroadcastFilter(responseJSON, func(s *melody.Session) bool {
-		return m.sessionInChannel(s, payload.ChannelID)
-	})
-
+	if err := m.natsConn.Publish("messages.create", data); err != nil {
+		m.sendError(s, "Failed to send event")
+		return
+	}
 }
