@@ -36,9 +36,11 @@ type CreateMessageResponse struct {
 }
 
 type CreateMessageEvent struct {
+	ID        uuid.UUID `json:"id"`
 	SenderID  uuid.UUID `json:"sender_id"`
 	ChannelID uuid.UUID `json:"channel_id"`
 	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type GetMessageResponse struct {
@@ -71,6 +73,9 @@ type UpdateMessageEvent struct {
 	SenderID  uuid.UUID `json:"sender_id"`
 	ChannelID uuid.UUID `json:"channel_id"`
 	Content   string    `json:"content"`
+	IsEdited  bool      `json:"is_edited"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type DeleteMessageEvent struct {

@@ -44,9 +44,11 @@ func (s *messagesService) CreateMessage(ctx context.Context, senderID, channelID
 	}
 
 	event := CreateMessageEvent{
+		ID:        message.ID,
 		SenderID:  senderID,
 		ChannelID: channelID,
 		Content:   content,
+		CreatedAt: message.CreatedAt,
 	}
 
 	eventData, err := json.Marshal(event)
@@ -91,10 +93,13 @@ func (s *messagesService) UpdateMessage(ctx context.Context, userID, messageID u
 	}
 
 	event := UpdateMessageEvent{
-		ID:        messageID,
-		SenderID:  userID,
-		ChannelID: message.ChannelID,
-		Content:   content,
+		ID:        updatedMessage.ID,
+		SenderID:  updatedMessage.SenderID,
+		ChannelID: updatedMessage.ChannelID,
+		Content:   updatedMessage.Content,
+		IsEdited:  updatedMessage.IsEdited,
+		CreatedAt: updatedMessage.CreatedAt,
+		UpdatedAt: updatedMessage.UpdatedAt,
 	}
 
 	eventData, err := json.Marshal(event)
