@@ -30,6 +30,11 @@ func (h *WebsocketEventHandler) RegisterHandlers() error {
 	if err != nil {
 		return err
 	}
+
+	_, err = h.nc.Subscribe(messages.SubjectMessageDelete, h.handleMessageDeleted)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -47,7 +52,7 @@ func (h *WebsocketEventHandler) handleMessageCreated(msg *nats.Msg) {
 		Message messages.CreateMessageEvent `json:"message"`
 		Sender  uuid.UUID                   `json:"sender"`
 	}{
-		Type:    "MESSAGE_CREATED",
+		Type:    "MESSAGE_CREATE",
 		Message: message,
 		Sender:  message.SenderID,
 	}
@@ -75,7 +80,7 @@ func (h *WebsocketEventHandler) handleMessageUpdated(msg *nats.Msg) {
 		Message messages.UpdateMessageEvent `json:"message"`
 		Sender  uuid.UUID                   `json:"sender"`
 	}{
-		Type:    "MESSAGE_UPDATED",
+		Type:    "MESSAGE_UPDATE",
 		Message: updatedMessage,
 		Sender:  updatedMessage.SenderID,
 	}
@@ -89,4 +94,30 @@ func (h *WebsocketEventHandler) handleMessageUpdated(msg *nats.Msg) {
 	log.Printf("Broadcasting message.updated event to channel %s", updatedMessage.ChannelID.String())
 
 	h.manager.BroadcastToChannel(updatedMessage.ChannelID.String(), data)
+}
+
+func (h *WebsocketEventHandler) handleMessageDeleted(msg *nats.Msg) {
+	var deletedMessage messages.DeleteMessageEvent
+	if err := json.Unmarshal(msg.Data, &deletedMessage); err != nil {
+		log.Printf("Invalid messages.deleted event: %v", err)
+		return
+	}
+
+	log.Printf("WebSocket received message.deleted event: %+v", deletedMessage)
+
+	payload := struct {
+		Type    string                      `json:"type"`
+		Message messages.DeleteMessageEvent `json:"message"`
+	}{
+		Type:    "MESSAGE_DELETE",
+		Message: deletedMessage,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("Failed to marshal broadcast payload: %v", err)
+		return
+	}
+
+	h.manager.BroadcastToChannel(deletedMessage.ChannelID.String(), data)
 }

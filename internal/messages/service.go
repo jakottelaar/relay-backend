@@ -123,5 +123,20 @@ func (s *messagesService) DeleteMessage(ctx context.Context, userID, messageID u
 	if err != nil {
 		return err
 	}
+
+	event := DeleteMessageEvent{
+		ID:        messageID,
+		ChannelID: message.ChannelID,
+	}
+
+	eventData, err := json.Marshal(event)
+	if err != nil {
+		return internal.NewInternalServerError("Failed to marshal delete message event")
+	}
+
+	if err := s.nc.Publish(SubjectMessageDelete, eventData); err != nil {
+		return internal.NewInternalServerError("Failed to publish delete message event")
+	}
+
 	return nil
 }

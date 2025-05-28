@@ -9,6 +9,7 @@ import (
 const (
 	SubjectMessageCreate = "messages.create"
 	SubjectMessageUpdate = "messages.update"
+	SubjectMessageDelete = "messages.delete"
 )
 
 type Message struct {
@@ -70,4 +71,9 @@ type UpdateMessageEvent struct {
 	SenderID  uuid.UUID `json:"sender_id"`
 	ChannelID uuid.UUID `json:"channel_id"`
 	Content   string    `json:"content"`
+}
+
+type DeleteMessageEvent struct {
+	ID        uuid.UUID `json:"id"`
+	ChannelID uuid.UUID `json:"channel_id"`
 }
