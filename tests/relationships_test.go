@@ -255,7 +255,7 @@ func TestRemoveFriend(t *testing.T) {
 			name:        "valid remove friend",
 			userID:      user1.ID.String(),
 			OtherUserID: user2.ID.String(),
-			wantStatus:  http.StatusOK,
+			wantStatus:  http.StatusNoContent,
 		},
 		{
 			name:        "error: remove friend that does not exist",

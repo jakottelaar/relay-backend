@@ -173,8 +173,6 @@ func (h *RelationshipsHandler) RemoveFriend(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Friend removed",
-	})
+	c.JSON(http.StatusNoContent, nil)
 
 }

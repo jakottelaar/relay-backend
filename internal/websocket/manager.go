@@ -9,14 +9,13 @@ import (
 	"slices"
 
 	"github.com/google/uuid"
-	"github.com/jakottelaar/relay-backend/internal/messages"
 	"github.com/nats-io/nats.go"
 	"github.com/olahol/melody"
 )
 
 type EventPayload struct {
-	Type string      `json:"type"`
-	Data interface{} `json:"data"`
+	Type string `json:"type"`
+	Data any    `json:"data"`
 }
 
 type Manager struct {
@@ -160,12 +159,6 @@ func (m *Manager) handleMessage(s *melody.Session, msg []byte) {
 	switch incoming.Type {
 	case "GET_ONLINE_USERS":
 		m.handleGetOnlineUsers(s)
-
-	case "MESSAGE_CREATE":
-		m.handleSendMessage(s, msg)
-
-	case "MESSAGE_UPDATE":
-		m.handleUpdateMessage(s, msg)
 	case "JOIN_CHANNEL":
 
 		var payload struct {
@@ -245,101 +238,4 @@ func (m *Manager) BroadcastToChannel(channelID string, data []byte) {
 func (m *Manager) sessionInChannel(s *melody.Session, channelID string) bool {
 	id, ok := s.Get("channel_id")
 	return ok && id == channelID
-}
-
-func (m *Manager) handleSendMessage(s *melody.Session, msg []byte) {
-	var payload struct {
-		ChannelID string `json:"channel_id"`
-		Content   string `json:"content"`
-	}
-
-	if err := json.Unmarshal(msg, &payload); err != nil {
-		m.sendError(s, "Invalid message format")
-		return
-	}
-
-	currentUserID, ok := s.Get("user_id")
-	if !ok {
-		m.sendError(s, "Unauthorized")
-		return
-	}
-
-	userID, err := uuid.Parse(currentUserID.(string))
-	if err != nil {
-		m.sendError(s, "Invalid user ID")
-		return
-	}
-
-	channelID, err := uuid.Parse(payload.ChannelID)
-	if err != nil {
-		m.sendError(s, "Invalid channel ID")
-		return
-	}
-
-	event := &messages.CreateMessageEvent{
-		ChannelID: channelID,
-		Content:   payload.Content,
-		SenderID:  userID,
-	}
-
-	data, err := json.Marshal(event)
-	if err != nil {
-		m.sendError(s, "Failed to encode event")
-		return
-	}
-
-	if err := m.natsConn.Publish(messages.SubjectMessageCreate, data); err != nil {
-		m.sendError(s, "Failed to send event")
-		return
-	}
-}
-
-func (m *Manager) handleUpdateMessage(s *melody.Session, msg []byte) {
-	log.Printf("Received message update request: %s", msg)
-	var payload struct {
-		ID      string `json:"id"`
-		Content string `json:"content"`
-	}
-
-	if err := json.Unmarshal(msg, &payload); err != nil {
-		m.sendError(s, "Invalid message format")
-		return
-	}
-
-	currentUserID, ok := s.Get("user_id")
-	if !ok {
-		m.sendError(s, "Unauthorized")
-		return
-	}
-
-	userID, err := uuid.Parse(currentUserID.(string))
-	if err != nil {
-		m.sendError(s, "Invalid user ID")
-		return
-	}
-
-	messageID, err := uuid.Parse(payload.ID)
-	if err != nil {
-		m.sendError(s, "Invalid message ID")
-		return
-	}
-
-	event := &messages.UpdateMessageEvent{
-		ID:       messageID,
-		SenderID: userID,
-		Content:  payload.Content,
-	}
-
-	log.Printf("Updating message %s by user %s with content: %s", messageID, userID, payload.Content)
-
-	data, err := json.Marshal(event)
-	if err != nil {
-		m.sendError(s, "Failed to encode event")
-		return
-	}
-
-	if err := m.natsConn.Publish(messages.SubjectMessageUpdate, data); err != nil {
-		m.sendError(s, "Failed to send event")
-		return
-	}
 }

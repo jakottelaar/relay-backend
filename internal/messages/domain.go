@@ -6,6 +6,11 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	SubjectMessageCreate = "messages.create"
+	SubjectMessageUpdate = "messages.update"
+)
+
 type Message struct {
 	ID        uuid.UUID
 	SenderID  uuid.UUID
@@ -27,6 +32,12 @@ type CreateMessageResponse struct {
 	ChannelID uuid.UUID `json:"channel_id"`
 	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type CreateMessageEvent struct {
+	SenderID  uuid.UUID `json:"sender_id"`
+	ChannelID uuid.UUID `json:"channel_id"`
+	Content   string    `json:"content"`
 }
 
 type GetMessageResponse struct {
@@ -52,4 +63,11 @@ type UpdateMessageResponse struct {
 	IsEdited  bool      `json:"is_edited"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type UpdateMessageEvent struct {
+	ID        uuid.UUID `json:"id"`
+	SenderID  uuid.UUID `json:"sender_id"`
+	ChannelID uuid.UUID `json:"channel_id"`
+	Content   string    `json:"content"`
 }

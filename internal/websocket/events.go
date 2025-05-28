@@ -22,11 +22,11 @@ func NewWebsocketEventHandler(nc *nats.Conn, manager *Manager) *WebsocketEventHa
 }
 
 func (h *WebsocketEventHandler) RegisterHandlers() error {
-	_, err := h.nc.Subscribe(messages.SubjectMessageCreated, h.handleMessageCreated)
+	_, err := h.nc.Subscribe(messages.SubjectMessageCreate, h.handleMessageCreated)
 	if err != nil {
 		return err
 	}
-	_, err = h.nc.Subscribe(messages.SubjectMessageUpdated, h.handleMessageUpdated)
+	_, err = h.nc.Subscribe(messages.SubjectMessageUpdate, h.handleMessageUpdated)
 	if err != nil {
 		return err
 	}
@@ -34,7 +34,7 @@ func (h *WebsocketEventHandler) RegisterHandlers() error {
 }
 
 func (h *WebsocketEventHandler) handleMessageCreated(msg *nats.Msg) {
-	var message messages.CreateMessageResponse
+	var message messages.CreateMessageEvent
 	if err := json.Unmarshal(msg.Data, &message); err != nil {
 		log.Printf("Invalid messages.created event: %v", err)
 		return
@@ -43,19 +43,13 @@ func (h *WebsocketEventHandler) handleMessageCreated(msg *nats.Msg) {
 	log.Printf("WebSocket received message.created event: %+v", message)
 
 	payload := struct {
-		Type    string                          `json:"type"`
-		Message *messages.CreateMessageResponse `json:"message"`
-		Sender  uuid.UUID                       `json:"sender"`
+		Type    string                      `json:"type"`
+		Message messages.CreateMessageEvent `json:"message"`
+		Sender  uuid.UUID                   `json:"sender"`
 	}{
-		Type: "MESSAGE_CREATED",
-		Message: &messages.CreateMessageResponse{
-			ID:        message.ID,
-			SenderID:  message.SenderID,
-			ChannelID: message.ChannelID,
-			Content:   message.Content,
-			CreatedAt: message.CreatedAt,
-		},
-		Sender: message.SenderID,
+		Type:    "MESSAGE_CREATED",
+		Message: message,
+		Sender:  message.SenderID,
 	}
 
 	data, err := json.Marshal(payload)
@@ -64,27 +58,26 @@ func (h *WebsocketEventHandler) handleMessageCreated(msg *nats.Msg) {
 		return
 	}
 
-	// Broadcast to the channel using your Manager
 	h.manager.BroadcastToChannel(message.ChannelID.String(), data)
 }
 
 func (h *WebsocketEventHandler) handleMessageUpdated(msg *nats.Msg) {
-	var updatedMsg messages.UpdateMessageResponse
-	if err := json.Unmarshal(msg.Data, &updatedMsg); err != nil {
+	var updatedMessage messages.UpdateMessageEvent
+	if err := json.Unmarshal(msg.Data, &updatedMessage); err != nil {
 		log.Printf("Invalid messages.updated event: %v", err)
 		return
 	}
 
-	log.Printf("WebSocket received message.updated event: %+v", updatedMsg)
+	log.Printf("WebSocket received message.updated event: %+v", updatedMessage)
 
 	payload := struct {
-		Type    string                          `json:"type"`
-		Message *messages.UpdateMessageResponse `json:"message"`
-		Sender  uuid.UUID                       `json:"sender"`
+		Type    string                      `json:"type"`
+		Message messages.UpdateMessageEvent `json:"message"`
+		Sender  uuid.UUID                   `json:"sender"`
 	}{
 		Type:    "MESSAGE_UPDATED",
-		Message: &updatedMsg,
-		Sender:  updatedMsg.SenderID,
+		Message: updatedMessage,
+		Sender:  updatedMessage.SenderID,
 	}
 
 	data, err := json.Marshal(payload)
@@ -93,7 +86,7 @@ func (h *WebsocketEventHandler) handleMessageUpdated(msg *nats.Msg) {
 		return
 	}
 
-	log.Printf("Broadcasting message.updated event to channel %s", updatedMsg.ChannelID.String())
+	log.Printf("Broadcasting message.updated event to channel %s", updatedMessage.ChannelID.String())
 
-	h.manager.BroadcastToChannel(updatedMsg.ChannelID.String(), data)
+	h.manager.BroadcastToChannel(updatedMessage.ChannelID.String(), data)
 }

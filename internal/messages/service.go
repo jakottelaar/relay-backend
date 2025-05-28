@@ -2,11 +2,13 @@ package messages
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/google/uuid"
 	"github.com/jakottelaar/relay-backend/internal"
 	"github.com/jakottelaar/relay-backend/internal/channels"
 	"github.com/jakottelaar/relay-backend/internal/common"
+	"github.com/nats-io/nats.go"
 )
 
 type MessagesService interface {
@@ -19,12 +21,14 @@ type MessagesService interface {
 type messagesService struct {
 	messagesRepo    MessagesRepo
 	channelsService channels.ChannelsService
+	nc              *nats.Conn
 }
 
-func NewMessagesService(messagesRepo MessagesRepo, channelsService channels.ChannelsService) MessagesService {
+func NewMessagesService(messagesRepo MessagesRepo, channelsService channels.ChannelsService, nc *nats.Conn) MessagesService {
 	return &messagesService{
 		messagesRepo:    messagesRepo,
 		channelsService: channelsService,
+		nc:              nc,
 	}
 }
 
@@ -37,6 +41,21 @@ func (s *messagesService) CreateMessage(ctx context.Context, senderID, channelID
 	message, err := s.messagesRepo.SaveMessage(ctx, senderID, channelID, content)
 	if err != nil {
 		return nil, err
+	}
+
+	event := CreateMessageEvent{
+		SenderID:  senderID,
+		ChannelID: channelID,
+		Content:   content,
+	}
+
+	eventData, err := json.Marshal(event)
+	if err != nil {
+		return nil, internal.NewInternalServerError("Failed to marshal create message event")
+	}
+
+	if err := s.nc.Publish(SubjectMessageCreate, eventData); err != nil {
+		return nil, internal.NewInternalServerError("Failed to publish create message event")
 	}
 
 	return message, nil
@@ -69,6 +88,22 @@ func (s *messagesService) UpdateMessage(ctx context.Context, userID, messageID u
 	updatedMessage, err := s.messagesRepo.UpdateMessage(ctx, userID, messageID, content)
 	if err != nil {
 		return nil, err
+	}
+
+	event := UpdateMessageEvent{
+		ID:        messageID,
+		SenderID:  userID,
+		ChannelID: message.ChannelID,
+		Content:   content,
+	}
+
+	eventData, err := json.Marshal(event)
+	if err != nil {
+		return nil, internal.NewInternalServerError("Failed to marshal update message event")
+	}
+
+	if err := s.nc.Publish(SubjectMessageUpdate, eventData); err != nil {
+		return nil, internal.NewInternalServerError("Failed to publish update message event")
 	}
 
 	return updatedMessage, nil

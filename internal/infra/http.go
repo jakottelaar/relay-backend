@@ -122,12 +122,8 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDepen
 	}
 
 	messagesRepo := messages.NewMessagesRepo(db)
-	messagesService := messages.NewMessagesService(messagesRepo, channelsService)
+	messagesService := messages.NewMessagesService(messagesRepo, channelsService, nats)
 	messagesHandler := messages.NewMessagesHandler(messagesService)
-	messagesEventHandler := messages.NewMessagesEventHandler(nats, messagesService)
-	if err := messagesEventHandler.RegisterHandlers(context.Background()); err != nil {
-		log.Fatalf("Failed to register message event handlers: %v", err)
-	}
 
 	messages := r.Group("/api/v1/channels/:channel_id/messages")
 	messages.Use(authMiddleware)
