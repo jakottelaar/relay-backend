@@ -22,9 +22,12 @@ func NewWebsocketEventHandler(nc *nats.Conn, manager *Manager) *WebsocketEventHa
 }
 
 func (h *WebsocketEventHandler) RegisterHandlers() error {
-	_, err := h.nc.QueueSubscribe("messages.created", "websocket-workers", h.handleMessageCreated)
+	_, err := h.nc.Subscribe(messages.SubjectMessageCreated, h.handleMessageCreated)
 	if err != nil {
-		log.Printf("Failed to subscribe to messages.created: %v", err)
+		return err
+	}
+	_, err = h.nc.Subscribe(messages.SubjectMessageUpdated, h.handleMessageUpdated)
+	if err != nil {
 		return err
 	}
 	return nil
@@ -44,7 +47,7 @@ func (h *WebsocketEventHandler) handleMessageCreated(msg *nats.Msg) {
 		Message *messages.CreateMessageResponse `json:"message"`
 		Sender  uuid.UUID                       `json:"sender"`
 	}{
-		Type: "MESSAGE_SENT",
+		Type: "MESSAGE_CREATED",
 		Message: &messages.CreateMessageResponse{
 			ID:        message.ID,
 			SenderID:  message.SenderID,
@@ -63,4 +66,34 @@ func (h *WebsocketEventHandler) handleMessageCreated(msg *nats.Msg) {
 
 	// Broadcast to the channel using your Manager
 	h.manager.BroadcastToChannel(message.ChannelID.String(), data)
+}
+
+func (h *WebsocketEventHandler) handleMessageUpdated(msg *nats.Msg) {
+	var updatedMsg messages.UpdateMessageResponse
+	if err := json.Unmarshal(msg.Data, &updatedMsg); err != nil {
+		log.Printf("Invalid messages.updated event: %v", err)
+		return
+	}
+
+	log.Printf("WebSocket received message.updated event: %+v", updatedMsg)
+
+	payload := struct {
+		Type    string                          `json:"type"`
+		Message *messages.UpdateMessageResponse `json:"message"`
+		Sender  uuid.UUID                       `json:"sender"`
+	}{
+		Type:    "MESSAGE_UPDATED",
+		Message: &updatedMsg,
+		Sender:  updatedMsg.SenderID,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("Failed to marshal broadcast payload: %v", err)
+		return
+	}
+
+	log.Printf("Broadcasting message.updated event to channel %s", updatedMsg.ChannelID.String())
+
+	h.manager.BroadcastToChannel(updatedMsg.ChannelID.String(), data)
 }

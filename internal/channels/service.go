@@ -121,11 +121,7 @@ func (s *channelsService) GetAllChannels(ctx context.Context, currentUserID uuid
 func (s *channelsService) GetDMChannelByID(ctx context.Context, channelID uuid.UUID) (*Channel, error) {
 	channel, err := s.channelsRepo.FindDMChannelByID(ctx, channelID)
 	if err != nil {
-		return nil, fmt.Errorf("error finding DM channel by ID: %w", err)
-	}
-
-	if channel == nil {
-		return nil, fmt.Errorf("channel not found")
+		return nil, err
 	}
 
 	return channel, nil

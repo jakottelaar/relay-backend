@@ -123,6 +123,7 @@ func (h *MessagesHandler) GetMessages(c *gin.Context) {
 			SenderID:  message.SenderID,
 			ChannelID: message.ChannelID,
 			Content:   message.Content,
+			IsEdited:  message.IsEdited,
 			CreatedAt: message.CreatedAt,
 			UpdatedAt: message.UpdatedAt,
 		})
@@ -169,9 +170,9 @@ func (h *MessagesHandler) UpdateMessage(c *gin.Context) {
 		SenderID:  message.SenderID,
 		ChannelID: message.ChannelID,
 		Content:   message.Content,
+		IsEdited:  message.IsEdited,
 		CreatedAt: message.CreatedAt,
 		UpdatedAt: message.UpdatedAt,
-		DeletedAt: message.DeletedAt,
 	}})
 }
 

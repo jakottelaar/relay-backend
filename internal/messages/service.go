@@ -66,7 +66,6 @@ func (s *messagesService) UpdateMessage(ctx context.Context, userID, messageID u
 		return nil, internal.NewForbiddenError("You are not the sender of this message")
 	}
 
-	message.Content = content
 	updatedMessage, err := s.messagesRepo.UpdateMessage(ctx, userID, messageID, content)
 	if err != nil {
 		return nil, err

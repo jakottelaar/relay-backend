@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jakottelaar/relay-backend/internal"
 )
 
 type ChannelsRepo interface {
@@ -276,7 +277,7 @@ func (r *channelsRepo) FindDMChannelByID(ctx context.Context, channelID uuid.UUI
 	err := row.Scan(&channel.ID, &channel.Name, &channel.OwnerID, &channel.ChannelType, &channel.CreatedAt, &channel.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil
+			return nil, internal.NewNotFoundError("DM channel not found")
 		}
 		return nil, err
 	}

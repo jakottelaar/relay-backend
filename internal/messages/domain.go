@@ -45,11 +45,11 @@ type UpdateMessageRequest struct {
 }
 
 type UpdateMessageResponse struct {
-	ID        uuid.UUID  `json:"id"`
-	SenderID  uuid.UUID  `json:"sender_id"`
-	ChannelID uuid.UUID  `json:"channel_id"`
-	Content   string     `json:"content"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
-	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	ID        uuid.UUID `json:"id"`
+	SenderID  uuid.UUID `json:"sender_id"`
+	ChannelID uuid.UUID `json:"channel_id"`
+	Content   string    `json:"content"`
+	IsEdited  bool      `json:"is_edited"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
