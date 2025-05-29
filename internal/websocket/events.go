@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jakottelaar/relay-backend/internal/messages"
+	"github.com/jakottelaar/relay-backend/internal/relationships"
 	"github.com/nats-io/nats.go"
 )
 
@@ -32,6 +33,11 @@ func (h *WebsocketEventHandler) RegisterHandlers() error {
 	}
 
 	_, err = h.nc.Subscribe(messages.SubjectMessageDelete, h.handleMessageDeleted)
+	if err != nil {
+		return err
+	}
+
+	_, err = h.nc.Subscribe(relationships.SubjectRelationshipCreate, h.handleRelationshipCreated)
 	if err != nil {
 		return err
 	}
@@ -120,4 +126,30 @@ func (h *WebsocketEventHandler) handleMessageDeleted(msg *nats.Msg) {
 	}
 
 	h.manager.BroadcastToChannel(deletedMessage.ChannelID.String(), data)
+}
+
+func (h *WebsocketEventHandler) handleRelationshipCreated(msg *nats.Msg) {
+	var relationship relationships.CreateRelationshipEvent
+	if err := json.Unmarshal(msg.Data, &relationship); err != nil {
+		log.Printf("Invalid relationships.created event: %v", err)
+		return
+	}
+
+	log.Printf("WebSocket received relationships.created event: %+v", relationship)
+
+	payload := struct {
+		Type string                                `json:"type"`
+		Data relationships.CreateRelationshipEvent `json:"data"`
+	}{
+		Type: "RELATIONSHIP_FRIEND_REQUEST_CREATE",
+		Data: relationship,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("Failed to marshal broadcast payload: %v", err)
+		return
+	}
+
+	h.manager.SendToUser(relationship.OtherUserID, data)
 }

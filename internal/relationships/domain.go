@@ -7,6 +7,10 @@ import (
 	"github.com/jakottelaar/relay-backend/internal/supabase"
 )
 
+const (
+	SubjectRelationshipCreate = "relationships.create"
+)
+
 type RelationshipStatus string
 
 const (
@@ -38,6 +42,12 @@ type CreateRelationshipResponse struct {
 	OtherUserID        uuid.UUID `json:"other_user_id"`
 	RelationshipStatus string    `json:"relationship_status"`
 	CreatedAt          time.Time `json:"created_at"`
+}
+
+type CreateRelationshipEvent struct {
+	ID          uuid.UUID        `json:"id"`
+	OtherUserID uuid.UUID        `json:"other_user_id"`
+	Sender      supabase.Profile `json:"sender"`
 }
 
 type GetRelationshipResponse struct {

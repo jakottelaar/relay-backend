@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jakottelaar/relay-backend/internal"
 	"github.com/jakottelaar/relay-backend/internal/supabase"
-	"github.com/jakottelaar/relay-backend/internal/websocket"
+	"github.com/nats-io/nats.go"
 )
 
 type RelationshipsService interface {
@@ -23,14 +23,14 @@ type RelationshipsService interface {
 type relationshipsService struct {
 	relationshipsRepo RelationshipsRepo
 	supabaseClient    supabase.SupabaseClient
-	wsManager         *websocket.Manager
+	nc                *nats.Conn
 }
 
-func NewRelationshipsService(relationshipsRepo RelationshipsRepo, supabaseClient supabase.SupabaseClient, wsManager *websocket.Manager) RelationshipsService {
+func NewRelationshipsService(relationshipsRepo RelationshipsRepo, supabaseClient supabase.SupabaseClient, nc *nats.Conn) RelationshipsService {
 	return &relationshipsService{
 		relationshipsRepo: relationshipsRepo,
 		supabaseClient:    supabaseClient,
-		wsManager:         wsManager,
+		nc:                nc,
 	}
 }
 
@@ -86,22 +86,21 @@ func (s *relationshipsService) CreateRelationship(ctx context.Context, username 
 	senderProfile, err := s.supabaseClient.GetUserByID(ctx, currentUserID)
 	if err != nil {
 		log.Printf("Error fetching sender profile: %v", err)
-	} else {
-		// Send WebSocket notification
-		notification := map[string]any{
-			"type": "FRIEND_REQUEST_RECEIVED",
-			"data": map[string]any{
-				"relationship_id": savedRelationship.ID.String(),
-				"sender": map[string]any{
-					"id":         senderProfile.ID.String(),
-					"username":   senderProfile.Username,
-					"avatar_url": senderProfile.AvatarUrl,
-				},
-			},
-		}
+	}
 
-		notificationJSON, _ := json.Marshal(notification)
-		s.wsManager.SendToUser(targetUser.ID, notificationJSON)
+	event := CreateRelationshipEvent{
+		ID:          savedRelationship.ID,
+		OtherUserID: targetUser.ID,
+		Sender:      *senderProfile,
+	}
+
+	eventData, err := json.Marshal(event)
+	if err != nil {
+		return nil, internal.NewInternalServerError("Failed to marshal create relationship event")
+	}
+
+	if err := s.nc.Publish(SubjectRelationshipCreate, eventData); err != nil {
+		return nil, internal.NewInternalServerError("Failed to publish create relationship event")
 	}
 
 	return savedRelationship, nil
@@ -190,25 +189,25 @@ func (s *relationshipsService) AcceptFriendRequest(ctx context.Context, currentU
 		return nil, fmt.Errorf("could not update other user's relationship: %w", err)
 	}
 
-	senderProfile, err := s.supabaseClient.GetUserByID(ctx, currentUserID)
-	if err != nil {
-		log.Printf("Error fetching sender profile: %v", err)
-	} else {
-		notification := map[string]any{
-			"type": "FRIEND_REQUEST_ACCEPTED",
-			"data": map[string]any{
-				"relationship_id": updatedRelationship.ID.String(),
-				"sender": map[string]any{
-					"id":         senderProfile.ID.String(),
-					"username":   senderProfile.Username,
-					"avatar_url": senderProfile.AvatarUrl,
-				},
-			},
-		}
+	// senderProfile, err := s.supabaseClient.GetUserByID(ctx, currentUserID)
+	// if err != nil {
+	// 	log.Printf("Error fetching sender profile: %v", err)
+	// } else {
+	// 	notification := map[string]any{
+	// 		"type": "FRIEND_REQUEST_ACCEPTED",
+	// 		"data": map[string]any{
+	// 			"relationship_id": updatedRelationship.ID.String(),
+	// 			"sender": map[string]any{
+	// 				"id":         senderProfile.ID.String(),
+	// 				"username":   senderProfile.Username,
+	// 				"avatar_url": senderProfile.AvatarUrl,
+	// 			},
+	// 		},
+	// 	}
 
-		notificationJSON, _ := json.Marshal(notification)
-		s.wsManager.SendToUser(targetUser.ID, notificationJSON)
-	}
+	// 	notificationJSON, _ := json.Marshal(notification)
+	// 	s.wsManager.SendToUser(targetUser.ID, notificationJSON)
+	// }
 
 	return updatedRelationship, nil
 }

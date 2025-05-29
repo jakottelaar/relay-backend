@@ -144,7 +144,7 @@ func registerRoutes(r *gin.Engine, db *sql.DB, cfg config.Config, deps *AppDepen
 	r.GET("/ws", wsHandler.HandleWebSocket)
 
 	relationShipsRepo := relationships.NewRelationshipsRepo(db)
-	relationShipsService := relationships.NewRelationshipsService(relationShipsRepo, supabaseClient, wsManager)
+	relationShipsService := relationships.NewRelationshipsService(relationShipsRepo, supabaseClient, nats)
 	relationshipsHandler := relationships.NewRelationshipsHandler(relationShipsService)
 
 	relationShips := r.Group("/api/v1/relationships")
