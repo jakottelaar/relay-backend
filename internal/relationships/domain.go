@@ -8,7 +8,8 @@ import (
 )
 
 const (
-	SubjectRelationshipCreate = "relationships.create"
+	SubjectRelationshipCreate   = "relationships.create"
+	SubjectRelationshipAccepted = "relationships.accepted"
 )
 
 type RelationshipStatus string
@@ -58,4 +59,10 @@ type GetRelationshipResponse struct {
 	CreatedAt          time.Time         `json:"created_at"`
 	UpdatedAt          time.Time         `json:"updated_at"`
 	OtherUser          *supabase.Profile `json:"other_user,omitempty"`
+}
+
+type AcceptRelationshipEvent struct {
+	ID          uuid.UUID        `json:"id"`
+	OtherUserID uuid.UUID        `json:"other_user_id"`
+	Sender      supabase.Profile `json:"sender"`
 }

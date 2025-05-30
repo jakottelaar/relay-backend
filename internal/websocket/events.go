@@ -41,6 +41,11 @@ func (h *WebsocketEventHandler) RegisterHandlers() error {
 	if err != nil {
 		return err
 	}
+
+	_, err = h.nc.Subscribe(relationships.SubjectRelationshipAccepted, h.handleRelationshipAccepted)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -142,6 +147,32 @@ func (h *WebsocketEventHandler) handleRelationshipCreated(msg *nats.Msg) {
 		Data relationships.CreateRelationshipEvent `json:"data"`
 	}{
 		Type: "RELATIONSHIP_FRIEND_REQUEST_CREATE",
+		Data: relationship,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("Failed to marshal broadcast payload: %v", err)
+		return
+	}
+
+	h.manager.SendToUser(relationship.OtherUserID, data)
+}
+
+func (h *WebsocketEventHandler) handleRelationshipAccepted(msg *nats.Msg) {
+	var relationship relationships.AcceptRelationshipEvent
+	if err := json.Unmarshal(msg.Data, &relationship); err != nil {
+		log.Printf("Invalid relationships.accepted event: %v", err)
+		return
+	}
+
+	log.Printf("WebSocket received relationships.accepted event: %+v", relationship)
+
+	payload := struct {
+		Type string                                `json:"type"`
+		Data relationships.AcceptRelationshipEvent `json:"data"`
+	}{
+		Type: "RELATIONSHIP_FRIEND_REQUEST_ACCEPTED",
 		Data: relationship,
 	}
 

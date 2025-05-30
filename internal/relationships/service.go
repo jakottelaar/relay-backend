@@ -189,25 +189,23 @@ func (s *relationshipsService) AcceptFriendRequest(ctx context.Context, currentU
 		return nil, fmt.Errorf("could not update other user's relationship: %w", err)
 	}
 
-	// senderProfile, err := s.supabaseClient.GetUserByID(ctx, currentUserID)
-	// if err != nil {
-	// 	log.Printf("Error fetching sender profile: %v", err)
-	// } else {
-	// 	notification := map[string]any{
-	// 		"type": "FRIEND_REQUEST_ACCEPTED",
-	// 		"data": map[string]any{
-	// 			"relationship_id": updatedRelationship.ID.String(),
-	// 			"sender": map[string]any{
-	// 				"id":         senderProfile.ID.String(),
-	// 				"username":   senderProfile.Username,
-	// 				"avatar_url": senderProfile.AvatarUrl,
-	// 			},
-	// 		},
-	// 	}
+	senderProfile, err := s.supabaseClient.GetUserByID(ctx, currentUserID)
+	if err != nil {
+		log.Printf("Error fetching sender profile: %v", err)
+	}
+	event := AcceptRelationshipEvent{
+		ID:          updatedRelationship.ID,
+		OtherUserID: targetUser.ID,
+		Sender:      *senderProfile,
+	}
+	eventData, err := json.Marshal(event)
+	if err != nil {
+		return nil, internal.NewInternalServerError("Failed to marshal create relationship event")
+	}
 
-	// 	notificationJSON, _ := json.Marshal(notification)
-	// 	s.wsManager.SendToUser(targetUser.ID, notificationJSON)
-	// }
+	if err := s.nc.Publish(SubjectRelationshipAccepted, eventData); err != nil {
+		return nil, internal.NewInternalServerError("Failed to publish relationship accepted event")
+	}
 
 	return updatedRelationship, nil
 }

@@ -234,8 +234,3 @@ func (m *Manager) BroadcastToChannel(channelID string, data []byte) {
 		}
 	}
 }
-
-func (m *Manager) sessionInChannel(s *melody.Session, channelID string) bool {
-	id, ok := s.Get("channel_id")
-	return ok && id == channelID
-}
