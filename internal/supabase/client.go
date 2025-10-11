@@ -15,7 +15,6 @@ import (
 type Profile struct {
 	ID        uuid.UUID `json:"id"`
 	Username  string    `json:"username"`
-	Email     string    `json:"email"`
 	AvatarUrl string    `json:"avatar_url"`
 	CreatedAt string    `json:"created_at"`
 	UpdatedAt string    `json:"updated_at"`
@@ -43,7 +42,7 @@ func NewSupabaseClient(url, apiKey string) *supabaseClient {
 
 func (c *supabaseClient) GetUserByUsername(ctx context.Context, username string) (*Profile, error) {
 	req, err := http.NewRequest("GET",
-		fmt.Sprintf("%s/rest/v1/profiles?username=eq.%s&select=id,username,email,avatar_url,created_at,updated_at", c.Url, username),
+		fmt.Sprintf("%s/rest/v1/profiles?username=eq.%s&select=id,username,avatar_url,created_at,updated_at", c.Url, username),
 		nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
@@ -71,7 +70,7 @@ func (c *supabaseClient) GetUserByUsername(ctx context.Context, username string)
 
 func (c *supabaseClient) GetUserByID(ctx context.Context, id uuid.UUID) (*Profile, error) {
 	req, err := http.NewRequest("GET",
-		fmt.Sprintf("%s/rest/v1/profiles?id=eq.%s&select=id,username,email,avatar_url,created_at,updated_at", c.Url, id.String()),
+		fmt.Sprintf("%s/rest/v1/profiles?id=eq.%s&select=id,username,avatar_url,created_at,updated_at", c.Url, id.String()),
 		nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
@@ -110,7 +109,7 @@ func (c *supabaseClient) GetUsersByIDs(ctx context.Context, userIDs []uuid.UUID)
 	idList := strings.Join(idStrings, ",")
 
 	req, err := http.NewRequest("GET",
-		fmt.Sprintf("%s/rest/v1/profiles?id=in.(%s)&select=id,username,email,avatar_url,created_at,updated_at",
+		fmt.Sprintf("%s/rest/v1/profiles?id=in.(%s)&select=id,username,avatar_url,created_at,updated_at",
 			c.Url, idList),
 		nil)
 	if err != nil {

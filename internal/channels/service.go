@@ -98,7 +98,6 @@ func (s *channelsService) GetAllChannels(ctx context.Context, currentUserID uuid
 				memberProfiles = append(memberProfiles, supabase.Profile{
 					ID:        profile.ID,
 					Username:  profile.Username,
-					Email:     profile.Email,
 					AvatarUrl: profile.AvatarUrl,
 					UpdatedAt: profile.UpdatedAt,
 				})
